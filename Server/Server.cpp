@@ -2,11 +2,12 @@
 #define MAX_CLIENT 1
 
 Server::Server(void) : sock(-1) {
+	port = 8080;
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	std::memset(&address, '\0', sizeof(address));
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = htonl(INADDR_ANY);
-	address.sin_port = htons(8080);
+	address.sin_port = htons(port);
 	if (bind(sock, (struct sockaddr*)&address, sizeof(address)) < 0) {
 		perror("bind failed");
         exit(EXIT_FAILURE);
@@ -21,19 +22,59 @@ Server::Server(void) : sock(-1) {
 	}
 }
 
+Server::Server(char *file) {
+  ifstream in(file);
+  if (!in.is_open() || in.bad() || in.fail()) {
+    return ;
+  }
+  cout << "ok" << endl;
+  in.close();
+}
+
 Server::Server(Server const & pointer) {
 	*this = pointer;
+}
+
+string stream_maker(char *file) {
+  ifstream in(file);
+  stringstream stream;
+
+  cout << "making stream\n";
+  if (!in.is_open() || in.bad() || in.fail())
+  {
+    cout << "error reading: " << file << endl;
+    return NULL;
+  }
+  while (!in.eof()) {
+    string line;
+    getline(in, line);
+    stream << line;
+  }
+  in.close();
+  return stream.str();
+}
+
+string make_content(const char *header, const char *connection, const char *type, const char *content) {
+  stringstream stream;
+
+  stream << header << "\n"
+         << "Connection: " << connection << "\n"
+         << "Content-Type: " << type << "\n"
+         << "Content-Lenght: " << strlen((const char *)content) << "\n\n"
+         << content;
+  return stream.str();
 }
 
 void Server::run(void) {
 	while (1) {
 		int client = accept(sock, (struct sockaddr*)NULL, NULL);
 		if (client != -1) {
-			char buffer[] = "hello world";
-			std::string rcv = receiver(client, 1024);
-			std::stringstream ss;
-			ss << rcv << " " << buffer;
-			sender(client, (char *)ss.str().c_str());
+
+      string file = "index.html";
+    	string rcv = receiver(client, 1024);
+      string page = stream_maker((char *)file.c_str());
+      string content = make_content("HTTP/1.0 200 OK", "close", "text/html", page.c_str());
+			sender(client, (char *)content.c_str());
 			close(client);
 		}
 	}

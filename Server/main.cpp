@@ -1,7 +1,12 @@
 #include "Server.h"
 
-int main(void) {
-	Server server;
-	server.run();
+int main(int c, char **v) {
+  if (c == 1) {
+  	Server server;
+	  server.run();
+  }
+  else {
+    Server server(v[1]);
+  }
 	return 0;
 }
