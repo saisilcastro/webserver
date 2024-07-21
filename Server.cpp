@@ -77,8 +77,8 @@ void Server::run(void) {
             continue;
         istringstream parse(receiver(client, 65535));
         parse >> method >> path >> protocol;
-        cout << method << "|" << path << "|" << protocol << "\n";
         if (method == "GET") {
+
         }
         else if (method == "POST") {
         }
