@@ -23,15 +23,15 @@ class Server {
     Server(char *);
 		Server(Server const &);
 		void run(void);
-		void sender(int, char *);
+		void sender(int, string);
 		std::string receiver(int, int);
 		Server & operator = (Server const &);
 		~Server(void);
 	private:
-		string			host;
-		unsigned short	port;
+		string		 host;
+    string     port;
 		SockAddrIn address;
-		int sock;
+		int        sock;
 };
 
 #endif

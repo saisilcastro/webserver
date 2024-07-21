@@ -1,5 +1,5 @@
 NAME = webserv
-SRC = main.cpp Server.cpp
+SRC = main.cpp Server.cpp Stream.cpp
 OBJ = obj
 SRCOBJ = $(SRC:%.cpp=${OBJ}/%.o)
 CREATE = mkdir -p $(1)
