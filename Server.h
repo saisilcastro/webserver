@@ -18,20 +18,22 @@ typedef struct sockaddr_in SockAddrIn;
 using namespace std;
 
 class Server {
-	public:
-		Server(void);
+public:
+    Server(void);
     Server(char *);
-		Server(Server const &);
-		void run(void);
-		void sender(int, string);
-		std::string receiver(int, int);
-		Server & operator = (Server const &);
-		~Server(void);
-	private:
-		string		 host;
+    Server(Server const &);
+    int     serverSocket(int);
+    
+    void    run(void);
+    void    sender(int, string);
+    string  receiver(int, int);
+    Server & operator = (Server const &);
+    ~Server(void);
+private:
+    string     host;
     string     port;
-		SockAddrIn address;
-		int        sock;
+    int        sock;
+    string     root;
 };
 
 #endif

@@ -7,13 +7,14 @@
 using namespace std;
 
 class Stream {
-    void    *buffer;
-    size_t  size;
-  public:
+    void	*buffer;
+    size_t	size;
+public:
     Stream(void);
     Stream(string file);
-    void  *getStream(void);
-    int   streamSize(void);
+    void	*getStream(void);
+    int		streamSize(void);
+    void	saveFile(string file);
     ~Stream(void);
 };
 
