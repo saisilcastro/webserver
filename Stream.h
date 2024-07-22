@@ -14,6 +14,7 @@ public:
     Stream(string file);
     void	*getStream(void);
     int		streamSize(void);
+    void    loadFile(string file);
     void	saveFile(string file);
     ~Stream(void);
 };

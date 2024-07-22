@@ -3,6 +3,19 @@
 Stream::Stream(void) : buffer(NULL), size(0) {}
 
 Stream::Stream(string file) : buffer(NULL), size(0) {
+    if (!file.empty())
+        loadFile(file);
+}
+
+void	*Stream::getStream(void) {
+    return buffer;
+}
+
+int		Stream::streamSize(void) {
+    return size;
+}
+
+void    Stream::loadFile(string file) {
     ifstream in(file.c_str(), std::ios::binary | std::ios::ate);
 
     if (!in.is_open() || in.bad() || in.fail()) {
@@ -16,14 +29,6 @@ Stream::Stream(string file) : buffer(NULL), size(0) {
         return ;
     in.read(reinterpret_cast<char *>(buffer), size);
     in.close();
-}
-
-void	*Stream::getStream(void) {
-    return buffer;
-}
-
-int		Stream::streamSize(void) {
-    return size;
 }
 
 void	Stream::saveFile(string file) {

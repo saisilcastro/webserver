@@ -1,3 +1,4 @@
+#include "Stream.h"
 #include "Server.h"
 #define MAX_CLIENT 10
 
@@ -50,12 +51,12 @@ int Server::serverSocket(int type) {
     return sock;
 }
 
-Server::Server(void) : host("127.0.0.1"), port("80"), sock(-1), root("www") {
+Server::Server(void) : host("127.0.0.1"), port("8080"), sock(-1), root("www"), mime("text/html") {
     if (serverSocket(SOCK_STREAM) == -1)
         exit(-1);
 }
 
-Server::Server(char *file) : host("127.0.0.1"), port("8080"), sock(-1), root("www") {
+Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html") {
     ifstream in(file);
     if (!in.is_open() || in.bad() || in.fail()) {
         return;
@@ -65,6 +66,69 @@ Server::Server(char *file) : host("127.0.0.1"), port("8080"), sock(-1), root("ww
 }
 
 Server::Server(Server const &pointer) { *this = pointer; }
+
+string  Server::mimeMaker(string path) {
+    size_t  pos;
+
+    if ((pos = path.rfind(".")) != string::npos) {
+        string  ext = path.substr(pos + 1, path.size() - pos);
+
+        if (ext == "htm" || ext == "html")
+            mime = "text/html";
+        if (ext == "css")
+            mime = "text/css"; 
+        if (ext == "js")
+            mime = "application/javascript";
+        if (ext == "json")
+            mime = "application/json";
+        if (ext == "txt")
+            mime = "text/plan";
+        if (ext == "gif")
+            mime = "image/gif";
+        if (ext == "jpg" || ext == "jpeg")
+            mime = "image/jpg";
+
+    }
+    return mime;
+}
+
+void  Server::contentMaker(int client, string protocol, string connection, void *data, size_t len) {
+    time_t  m_time;
+    char    head[65536];
+    m_time = time(NULL);
+
+    int head_len = sprintf(head, "%s\n"
+                                   "Date: %s"
+                                   "Connection: %s\n"
+                                   "Content-Type: %s\n"
+                                   "Content-Lenght: %li\n\n",
+                                   protocol.c_str(), ctime(&m_time), connection.c_str(), mime.c_str(), len);
+    char *content = new char[head_len + len];
+    sprintf(content, "%s", head);
+    memcpy(content + head_len, data, len);
+    int ok = send(client, content, head_len + len, 0);
+    if (ok == -1) {
+        cerr << "could not send content\n";
+    }
+    delete []content;
+}
+
+void    Server::response(int client, string path, string protocol) {
+    size_t  pos = path.rfind(".");
+    stringstream    file;
+    Stream          stream("");
+
+    mimeMaker(path);
+    if (pos == string::npos) {
+        file << root << "/index.html";
+        stream.loadFile(file.str());
+    }
+    else {
+        file << root << path;
+        stream.loadFile(file.str());
+    }
+    contentMaker(client, protocol + " 200 OK", "alive", stream.getStream(), stream.streamSize());
+}
 
 void Server::run(void) {
     struct sockaddr_storage store;
@@ -78,7 +142,7 @@ void Server::run(void) {
         istringstream parse(receiver(client, 65535));
         parse >> method >> path >> protocol;
         if (method == "GET") {
-
+            response(client, path, protocol);
         }
         else if (method == "POST") {
         }
@@ -87,10 +151,6 @@ void Server::run(void) {
         }
         close(client);
     }
-}
-
-void Server::sender(int client_socket, string buffer) {
-    send(client_socket, buffer.c_str(), buffer.size(), 0);
 }
 
 std::string Server::receiver(int client_socket, int maxsize) {
@@ -106,7 +166,9 @@ Server &Server::operator=(Server const &pointer) {
     if (this != &pointer) {
         host = pointer.host;
         port = pointer.port;
-        sock = pointer.sock; 
+        sock = pointer.sock;
+        root = pointer.root;
+        mime = pointer.mime;
     }
     return *this;
 }

@@ -13,6 +13,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <sstream>
+#include <ctime>
 
 typedef struct sockaddr_in SockAddrIn;
 using namespace std;
@@ -23,9 +24,10 @@ public:
     Server(char *);
     Server(Server const &);
     int     serverSocket(int);
-    
+    string  mimeMaker(string);
+    void    contentMaker(int, string, string, void *, size_t);
+    void    response(int, string, string);
     void    run(void);
-    void    sender(int, string);
     string  receiver(int, int);
     Server & operator = (Server const &);
     ~Server(void);
@@ -34,6 +36,7 @@ private:
     string     port;
     int        sock;
     string     root;
+    string     mime;
 };
 
 #endif
