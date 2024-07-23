@@ -6,6 +6,17 @@ Protocol::Protocol(char *data) : method("GET"), path("/"), type("HTTP/1.1"), con
     extract(data);
 }
 
+void    Protocol::reset(void) {
+    method = "";
+    path = "";
+    type = "";
+    connection = "";
+    boundary = "";
+    file = "";
+    length = 0;
+    header = 0;
+}
+
 string inside(string text, string sub, string stop) {
     size_t  pos;
     if ((pos = text.find(sub)) != string::npos) {
@@ -16,17 +27,21 @@ string inside(string text, string sub, string stop) {
     return "";
 }
 
-void    Protocol::extract(char *data) {
+void    Protocol::extract(char *data){
     istringstream parse(data);
     size_t  pos;
-
+ 
     parse >> method >> path >> type;
     if ((pos = parse.str().find("\r\n\r\n")) != string::npos)
-        header = parse.str().substr(0, pos + 4).size();
+        header = parse.str().substr(pos + 4).find("\r\n\r\n") + pos + 8;
     connection = inside(parse.str(), "Connection: ", "\n");
     boundary = inside(parse.str(), "boundary=", "\n");
     file = inside(parse.str(), "filename=\"","\"");
     length = atoi(inside(parse.str(), "Content-Length: ", "\n").c_str());
+}
+
+void    Protocol::setMethod(string value) {
+    method = value;
 }
 
 bool    Protocol::isMethod(string value) {
@@ -55,11 +70,11 @@ string  Protocol::getFileName(void) {
     return file;
 }
 
-size_t  Protocol::getFileLen(void) {
+ssize_t  Protocol::getFileLen(void) {
     return length;
 }
 
-size_t  Protocol::getHeaderLen(void) {
+ssize_t  Protocol::getHeaderLen(void) {
     return header;
 }
 

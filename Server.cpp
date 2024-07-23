@@ -73,9 +73,13 @@ string  Server::createPacket(int client) {
     bool            packetCreated = false;
     bool            creating = true;
     char            buffer[65535];
+    size_t          currentSize = 0;
+    size_t          writtenByte = 0;
+    size_t          offset;
     int             piece;
-    string          data("");
+    ofstream        out; 
  
+    master.reset();
     while (creating) {
         FD_ZERO(&read_fd);
         FD_SET(client, &read_fd);
@@ -90,20 +94,44 @@ string  Server::createPacket(int client) {
                 piece = recv(client, buffer, 65535, 0);
 
                 if (piece > 0) {
-                    data.append(buffer, piece);
-                    if (packetCreated == false) {
+                    currentSize += piece;
+                    if (packetCreated == false && !out.is_open()) {
                         master.extract(buffer);
                         packetCreated = true;
+                        string path = "./" + root + "/upload/" + master.getFileName();
+                        if (master.isMethod("POST")) {
+                            struct stat mStat;
+                            if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
+                                remove(path.c_str());
+                            }
+                            out.open(path.c_str(), ios::out | ios::binary);
+                        }
+                        if (!out.is_open())
+                            continue;
+                        chmod(path.c_str(), 0777);
+                        offset = (size_t)master.getHeaderLen();
                     }
-                    if (packetCreated && master.getFileLen() > 0 && data.size() >= (size_t)(master.getFileLen() + master.getHeaderLen()))
-                        break ;
+
+                    size_t  dataLen = piece - offset;
+                    size_t  remainingLen = size_t(master.getFileLen()) - writtenByte;
+
+                    if (remainingLen < dataLen)
+                        dataLen = remainingLen;
+                    if (dataLen > 0) {
+                        out.write(buffer + offset, dataLen);
+                        writtenByte += dataLen;
+                    }
+                    if (writtenByte >= (size_t)master.getFileLen())
+                        break;
+                    offset = 0;
                 }
                 else
                     creating = false;
             }
         }
     }
-    return data;
+    out.close();
+    return "";
 }
 
 string  Server::mimeMaker(string path) {
@@ -165,45 +193,15 @@ void    Server::response(int client, string path, string protocol) {
         file << root << path;
         stream.loadFile(file.str());
     }
-    contentMaker(client, protocol + " 200 OK", "alive", stream.getStream(), stream.streamSize());
-}
-
-std::vector<std::string> split(const std::string& str, const std::string& delimiter) {
-    std::vector<std::string> tokens;
-    size_t start = 0, end, delimiter_length = delimiter.length();
-
-    while ((end = str.find(delimiter, start)) != std::string::npos) {
-        tokens.push_back(str.substr(start, end - start));
-        start = end + delimiter_length;
-    }
-    tokens.push_back(str.substr(start));
-    return tokens;
-}
-
-void    Server::postPrepare(string data) {
-    vector<string> part = split(data, "--" + master.getBoundary());
-    string         content;
-
-    for (size_t i = 0; i < part.size(); ++i) {
-        if (part[i].find("Content-Disposition: form-data;") != std::string::npos) {
-            size_t headersEnd = part[i].find("\r\n\r\n");
-            if (headersEnd != std::string::npos) {
-                content = part[i].substr(headersEnd + 4);
-                content = content.substr(0, content.size() - 2);
-            }
-        }
-    }
-    Stream  file;
-    file.createStream((void *)content.c_str(), content.size());
-    file.saveFile(master.getFileName());
+    contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
 }
 
 void    Server::requestTreat(int client, string data) {
+    (void)data;
     if (master.isMethod("GET"))
         response(client, master.getPath(), master.getType());
     else if (master.isMethod("POST")) {
-        postPrepare(data);
-        response(client, master.getPath(), master.getType());
+        response(client, "/index.html", master.getType());
     }
 }
 
