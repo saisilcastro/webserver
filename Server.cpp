@@ -53,7 +53,7 @@ int Server::serverSocket(int type) {
 
 Server::Server(void) : host("127.0.0.1"), port("8080"), sock(-1), root("www"), mime("text/html") {
     if (serverSocket(SOCK_STREAM) == -1)
-        exit(-1);
+        exit(-1); 
 }
 
 Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html") {
@@ -66,6 +66,45 @@ Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"
 }
 
 Server::Server(Server const &pointer) { *this = pointer; }
+
+string  Server::createPacket(int client) {
+    fd_set          read_fd;
+    struct timeval  timeout;
+    bool            packetCreated = false;
+    bool            creating = true;
+    char            buffer[65535];
+    int             piece;
+    string          data("");
+ 
+    while (creating) {
+        FD_ZERO(&read_fd);
+        FD_SET(client, &read_fd);
+
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 100000;
+        int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
+        if (receiving <= 0)
+            creating = false;
+        else {
+            if (FD_ISSET(client, &read_fd)) {
+                piece = recv(client, buffer, 65535, 0);
+
+                if (piece > 0) {
+                    data.append(buffer, piece);
+                    if (packetCreated == false) {
+                        master.extract(buffer);
+                        packetCreated = true;
+                    }
+                    if (packetCreated && master.getFileLen() > 0 && data.size() >= (size_t)(master.getFileLen() + master.getHeaderLen()))
+                        break ;
+                }
+                else
+                    creating = false;
+            }
+        }
+    }
+    return data;
+}
 
 string  Server::mimeMaker(string path) {
     size_t  pos;
@@ -87,7 +126,6 @@ string  Server::mimeMaker(string path) {
             mime = "image/gif";
         if (ext == "jpg" || ext == "jpeg")
             mime = "image/jpg";
-
     }
     return mime;
 }
@@ -130,36 +168,56 @@ void    Server::response(int client, string path, string protocol) {
     contentMaker(client, protocol + " 200 OK", "alive", stream.getStream(), stream.streamSize());
 }
 
-void Server::run(void) {
-    struct sockaddr_storage store;
-    string method, path, protocol;
+std::vector<std::string> split(const std::string& str, const std::string& delimiter) {
+    std::vector<std::string> tokens;
+    size_t start = 0, end, delimiter_length = delimiter.length();
 
-    while (1) {
-        socklen_t len = sizeof(store);
-        int client = accept(sock, (struct sockaddr *)&store, &len);
-        if (client == -1)
-            continue;
-        istringstream parse(receiver(client, 65535));
-        parse >> method >> path >> protocol;
-        if (method == "GET") {
-            response(client, path, protocol);
+    while ((end = str.find(delimiter, start)) != std::string::npos) {
+        tokens.push_back(str.substr(start, end - start));
+        start = end + delimiter_length;
+    }
+    tokens.push_back(str.substr(start));
+    return tokens;
+}
+
+void    Server::postPrepare(string data) {
+    vector<string> part = split(data, "--" + master.getBoundary());
+    string         content;
+
+    for (size_t i = 0; i < part.size(); ++i) {
+        if (part[i].find("Content-Disposition: form-data;") != std::string::npos) {
+            size_t headersEnd = part[i].find("\r\n\r\n");
+            if (headersEnd != std::string::npos) {
+                content = part[i].substr(headersEnd + 4);
+                content = content.substr(0, content.size() - 2);
+            }
         }
-        else if (method == "POST") {
-        }
-        else {
-            cerr << "method " << method << " can't be interpreted\n";
-        }
-        close(client);
+    }
+    Stream  file;
+    file.createStream((void *)content.c_str(), content.size());
+    file.saveFile(master.getFileName());
+}
+
+void    Server::requestTreat(int client, string data) {
+    if (master.isMethod("GET"))
+        response(client, master.getPath(), master.getType());
+    else if (master.isMethod("POST")) {
+        postPrepare(data);
+        response(client, master.getPath(), master.getType());
     }
 }
 
-std::string Server::receiver(int client_socket, int maxsize) {
-    char buffer[maxsize];
-    int len = recv(client_socket, buffer, maxsize, 0);
-    buffer[len] = 0;
-    std::stringstream ss;
-    ss << buffer;
-    return ss.str();
+void Server::run(void) {
+    int     client = -1;
+
+    while (1) {
+        client = accept(sock, NULL,NULL);
+        if (client == -1)
+            continue;
+        fcntl(client, F_SETFL, O_NONBLOCK);
+        requestTreat(client, createPacket(client));
+        close(client);
+    }
 }
 
 Server &Server::operator=(Server const &pointer) {
