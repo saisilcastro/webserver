@@ -207,7 +207,8 @@ void    Server::requestTreat(int client, string data) {
 
 void Server::run(void) {
     int     client = -1;
-
+    cout << host << endl;
+    cout << port << endl;
     while (1) {
         client = accept(sock, NULL,NULL);
         if (client == -1)
@@ -225,6 +226,7 @@ Server &Server::operator=(Server const &pointer) {
         sock = pointer.sock;
         root = pointer.root;
         mime = pointer.mime;
+        locations = pointer.locations;
     }
     return *this;
 }
