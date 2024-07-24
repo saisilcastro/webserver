@@ -84,8 +84,8 @@ string  Server::createPacket(int client) {
         FD_ZERO(&read_fd);
         FD_SET(client, &read_fd);
 
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 100000;
+        timeout.tv_sec = 10;
+        timeout.tv_usec = 0;
         int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
         if (receiving <= 0)
             creating = false;
@@ -106,7 +106,7 @@ string  Server::createPacket(int client) {
                             }
                             out.open(path.c_str(), ios::out | ios::binary);
                         }
-                        if (!out.is_open())
+                        if (master.isMethod("POST") && !out.is_open())
                             continue;
                         chmod(path.c_str(), 0777);
                         offset = (size_t)master.getHeaderLen();
@@ -121,7 +121,9 @@ string  Server::createPacket(int client) {
                         out.write(buffer + offset, dataLen);
                         writtenByte += dataLen;
                     }
-                    if (writtenByte >= (size_t)master.getFileLen())
+                    if (master.isMethod("POST"))
+                        cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
+                    if (writtenByte >= master.getFileLen())
                         break;
                     offset = 0;
                 }

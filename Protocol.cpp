@@ -37,7 +37,7 @@ void    Protocol::extract(char *data){
     connection = inside(parse.str(), "Connection: ", "\n");
     boundary = inside(parse.str(), "boundary=", "\n");
     file = inside(parse.str(), "filename=\"","\"");
-    length = atoi(inside(parse.str(), "Content-Length: ", "\n").c_str());
+    length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
 }
 
 void    Protocol::setMethod(string value) {
@@ -70,11 +70,11 @@ string  Protocol::getFileName(void) {
     return file;
 }
 
-ssize_t  Protocol::getFileLen(void) {
+size_t  Protocol::getFileLen(void) {
     return length;
 }
 
-ssize_t  Protocol::getHeaderLen(void) {
+size_t  Protocol::getHeaderLen(void) {
     return header;
 }
 
