@@ -41,11 +41,23 @@ void processDirective(const std::string& line, Server& config, Location& current
 
     if (directive == "listen") {
         config.setPort(value);
-    } else if (directive == "index" || directive == "root" || directive == "autoindex") {
+    } 
+    else if(directive == "server_name") {
+        config.setHost(value);
+    }
+    else if (directive == "root") {
         if (inLocation) {
             currentLocation.directives[directive] = value;
         } else {
-            config.setHost(value);
+            config.setRoot(value);
+        }
+    }
+    else if (directive == "autoindex") {
+        if (inLocation) {
+            currentLocation.directives[directive] = value;
+        } else {
+            std::cerr << "Error: Unknown directive outside location: " << directive << std::endl;
+            throw std::runtime_error("Unknown directive outside location");
         }
     } else {
         if (inLocation) {
@@ -66,20 +78,21 @@ void erase(std::string &line) {
         line.erase(line.find(CLOSE_BRACKET), 1);
 }
 
-Server parser(const char *file, int argc) {
-    if(argc == 1)
-        return Server();
+void parser(const char *file, int argc, Server& config) {
+    if (argc == 1) {
+        return;
+    }
+
     std::ifstream in(file);
+    if (!in.is_open()) {
+        throw std::runtime_error("Error: Could not open file. Using default settings.");
+    }
+
     std::string line;
     Location currentLocation;
-    Server config;
     bool inLocation = false;
     int bracketCount = 0;
 
-    if (!in.is_open()) {
-        cerr << "Error: Could not open file. Using default settings." << endl;
-        return Server();
-    }
     while (std::getline(in, line)) {
         if (skipEmptyLines(line, bracketCount))
             continue;
@@ -92,14 +105,10 @@ Server parser(const char *file, int argc) {
             }
             continue;
         }
-        try
-        {
+        try {
             validateSemicolon(line);
-        }
-        catch(const std::exception& e)
-        {
-            std::cerr << "Error: " << e.what() << ". Using default settings." << std::endl;
-            return Server();
+        } catch (const std::exception& e) {
+            throw std::runtime_error("Error: " + std::string(e.what()) + ". Using default settings.");
         }
         erase(line);
         if (line.find("location") != std::string::npos) {
@@ -108,23 +117,29 @@ Server parser(const char *file, int argc) {
             if (!currentLocation.path.empty() && currentLocation.path[currentLocation.path.size() - 1] == OPEN_BRACKET[0]) {
                 currentLocation.path.erase(currentLocation.path.size() - 1);
             }
-        } else
+        } else {
             processDirective(line, config, currentLocation, inLocation);
+        }
     }
     in.close();
     if (bracketCount != 0) {
-        std::cerr << "Error: Unmatched opening bracket. Using default settings." << std::endl;
-        return Server();
+        throw std::runtime_error("Error: Unmatched opening bracket. Using default settings.");
     }
-    if(line.find(" ") != std::string::npos)
-        line.erase(line.find(" "), 1);
-    return(config);
 }
 
 int main(int argc, char **argv) {
-    Server server = parser(argv[1], argc);
-    cout << server.getHost() << endl;
-    cout << server.getPort() << endl;
-    server.run();
+    try {
+        Server server;
+        if (argc > 1) {
+            parser(argv[1], argc, server);
+        }
+        server.run();
+    } catch (const std::runtime_error& e) {
+        std::cerr << e.what() << std::endl;
+        //Using default settings
+        Server server;
+        server.run();
+    }
     return 0;
 }
+

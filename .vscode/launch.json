@@ -8,7 +8,7 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "/home/eddos-sa/webserver/webserv",
-        "args": ["/home/eddos-sa/webserver/autoindex.conf"],
+        "args": [],
         "stopAtEntry": true,
         "cwd": "${fileDirname}",
         "environment": [],

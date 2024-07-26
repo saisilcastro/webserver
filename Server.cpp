@@ -3,6 +3,9 @@
 #define MAX_CLIENT 10
 
 int Server::serverSocket(int type) {
+    static int i = 0;
+    i++;
+    cout << "serverSocket called " << i << " times" << endl;
     struct addrinfo hints;
     struct addrinfo *result;
     struct addrinfo *cur;
@@ -53,17 +56,19 @@ int Server::serverSocket(int type) {
 
 Server::Server(void) : host("127.0.0.1"), port("8080"), sock(-1), root("www"), mime("text/html") {
     if (serverSocket(SOCK_STREAM) == -1)
-        exit(-1); 
+        exit(-1);
+    cout << sock << endl;
 }
 
-Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html") {
+
+/* Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html") {
     ifstream in(file);
     if (!in.is_open() || in.bad() || in.fail()) {
         return;
     }
     cout << "ok" << endl;
     in.close();
-}
+} */
 
 Server::Server(Server const &pointer) { *this = pointer; }
 
@@ -207,8 +212,16 @@ void    Server::requestTreat(int client, string data) {
 
 void Server::run(void) {
     int     client = -1;
-    cout << host << endl;
-    cout << port << endl;
+    // host = "127.0.0.1";
+    // port = "8080";
+    // root = "www";
+    // mime = "text/html";
+    cout << "host: " << host << endl;
+    cout << "port: " << port << endl;
+    cout << "root: " << root << endl;
+    cout << "mime: " << mime << endl;
+    cout << "sock: " << sock << endl;
+    
     while (1) {
         client = accept(sock, NULL,NULL);
         if (client == -1)
