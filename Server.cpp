@@ -98,18 +98,19 @@ string  Server::createPacket(int client) {
                     if (packetCreated == false && !out.is_open()) {
                         master.extract(buffer);
                         packetCreated = true;
-                        string path = "./" + root + "/upload/" + master.getFileName();
-                        if (master.isMethod("POST")) {
-                            struct stat mStat;
-                            if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
-                                remove(path.c_str());
+                        if (master.getFileLen()) {
+                            string path = "./" + root + "/upload/" + master.getFileName();
+                            if (master.isMethod("POST")) {
+                                struct stat mStat;
+                                if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
+                                    remove(path.c_str());
+                                }
+                                out.open(path.c_str(), ios::out | ios::binary);
                             }
-                            out.open(path.c_str(), ios::out | ios::binary);
+                            if (!out.is_open())
+                                continue ;
+                            offset = (size_t)master.getHeaderLen();
                         }
-                        if (master.isMethod("POST") && !out.is_open())
-                            continue;
-                        chmod(path.c_str(), 0777);
-                        offset = (size_t)master.getHeaderLen();
                     }
 
                     size_t  dataLen = piece - offset;
@@ -139,23 +140,26 @@ string  Server::createPacket(int client) {
 string  Server::mimeMaker(string path) {
     size_t  pos;
 
+    mime = "text/html";
     if ((pos = path.rfind(".")) != string::npos) {
         string  ext = path.substr(pos + 1, path.size() - pos);
 
         if (ext == "htm" || ext == "html")
             mime = "text/html";
-        if (ext == "css")
+        else if (ext == "css")
             mime = "text/css"; 
-        if (ext == "js")
+        else if (ext == "js")
             mime = "application/javascript";
-        if (ext == "json")
+        else if (ext == "json")
             mime = "application/json";
-        if (ext == "txt")
+        else if (ext == "txt")
             mime = "text/plan";
-        if (ext == "gif")
+        else if (ext == "gif")
             mime = "image/gif";
-        if (ext == "jpg" || ext == "jpeg")
+        else if (ext == "jpg" || ext == "jpeg")
             mime = "image/jpg";
+        else
+            mime = "text/html";
     }
     return mime;
 }
@@ -183,17 +187,31 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 
 void    Server::response(int client, string path, string protocol) {
     size_t  pos = path.rfind(".");
-    stringstream    file;
-    Stream          stream("");
+    Stream  stream("");
 
     mimeMaker(path);
-    if (pos == string::npos) {
-        file << root << "/index.html";
-        stream.loadFile(file.str());
-    }
+    if (pos == string::npos)
+        stream.loadFile(root + "/index.html");
     else {
-        file << root << path;
-        stream.loadFile(file.str());
+        if ((pos = path.find(".")) != string::npos) {
+            if (path.find("?") != string::npos) {
+                if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
+                    (path.find(".py") != string::npos && path[pos + 3]))
+                    path = "/404.html";
+                else {
+                    if (path.find(".php") != string::npos)
+                        path = path.substr(0, pos + 4);
+                    else if (path.find(".py") != string::npos)
+                        path = path.substr(0, pos + 3);
+                }
+            }
+            else {
+                if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
+                    (path.find(".py") != string::npos && path.length() > pos + 3))
+                    path = "/404.html";
+            }
+        }
+        stream.loadFile(root + path);
     }
     contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
 }
@@ -203,7 +221,7 @@ void    Server::requestTreat(int client, string data) {
     if (master.isMethod("GET"))
         response(client, master.getPath(), master.getType());
     else if (master.isMethod("POST")) {
-        response(client, "/index.html", master.getType());
+        response(client, master.getPath(), master.getType());
     }
 }
 

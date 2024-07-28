@@ -1,3 +1,9 @@
+<ul>
+<li>
 <?php
-	echo "I am alive";
+//phpinfo();
+	$name = "Lisias de Castro";
+	echo "I am fucking ".$name;
 ?>
+</li>
+</ul>

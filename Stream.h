@@ -4,6 +4,11 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdexcept>
+#include <cstdlib>
+#include <sys/wait.h>
 
 using namespace std;
 
