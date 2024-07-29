@@ -1,5 +1,5 @@
 NAME = webserv
-SRC = main.cpp Server.cpp Stream.cpp Protocol.cpp
+SRC = main.cpp Server.cpp Stream.cpp Protocol.cpp parser.cpp
 OBJ = obj
 SRCOBJ = $(SRC:%.cpp=${OBJ}/%.o)
 CREATE = mkdir -p $(1)
@@ -18,3 +18,6 @@ clean:
 fclean: clean
 	$(call REMOVE,${NAME})
 re: fclean all
+
+run: all
+	clear && ./$(NAME) file.conf

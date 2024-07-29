@@ -14,8 +14,8 @@ class Protocol {
     string  connection;
     string  boundary;
     string  file;
-    ssize_t  length;
-    ssize_t  header;
+    size_t  length;
+    size_t  header;
 public:
     Protocol(void);
     Protocol(char *);
@@ -28,8 +28,8 @@ public:
     string  getConnection(void);
     string  getBoundary(void);
     string  getFileName(void);
-    ssize_t  getFileLen(void);
-    ssize_t  getHeaderLen(void);
+    size_t  getFileLen(void);
+    size_t  getHeaderLen(void);
     ~Protocol(void);
 };
 
