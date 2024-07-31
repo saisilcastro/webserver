@@ -99,10 +99,8 @@ string  Server::createPacket(int client) {
                         master.extract(buffer);
                         packetCreated = true;
                         if (master.getFileLen()) {
+							cout << "entrou" << endl;
                             string path = "./" + root + "/upload/" + master.getFileName();
-							{
-								cout << master.getFileName() << endl;
-							}
                             if (master.isMethod("POST")) {
                                 struct stat mStat;
                                 if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
@@ -254,7 +252,6 @@ void    Server::requestTreat(int client, string data) {
 
 void Server::run(void) {
     int     client = -1;
-	printLocations(*this);
     while (1) {
         client = accept(sock, NULL,NULL);
         if (client == -1)
@@ -273,7 +270,6 @@ Server &Server::operator=(Server const &pointer) {
         root = pointer.root;
         mime = pointer.mime;
 		locations = pointer.locations;
-		cout << "entrou " << endl;
     }
     return *this;
 }
