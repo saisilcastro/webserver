@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     try {
         Server server;
         if (argc > 1) {
-            parser(argv[1], argc, server);
+            parser(argv[1], server);
         }
         server.run();
     } catch (const runtime_error& e) {

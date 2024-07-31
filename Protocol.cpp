@@ -30,9 +30,9 @@ string inside(string text, string sub, string stop) {
 void    Protocol::extract(char *data){
     istringstream parse(data);
     size_t  pos;
- 
+
     parse >> method >> path >> type;
-    if ((pos = parse.str().find("\r\n\r\n")) != string::npos)
+	if ((pos = parse.str().find("\r\n\r\n")) != string::npos)
         header = parse.str().substr(pos + 4).find("\r\n\r\n") + pos + 8;
     connection = inside(parse.str(), "Connection: ", "\n");
     boundary = inside(parse.str(), "boundary=", "\n");

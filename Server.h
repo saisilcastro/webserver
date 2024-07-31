@@ -26,6 +26,7 @@ using namespace std;
 struct Location
 {
 	string path;
+	//map<title, value>
 	map<string, string> directives;
 };
 
@@ -44,6 +45,7 @@ public:
     void    run(void);
     Server & operator = (Server const &);
     ~Server(void);
+
 	vector<Location> getLocations() const { return locations; }
     vector<Location>::iterator getBegin() { return locations.begin(); }
     vector<Location>::iterator getEnd() { return locations.end(); }
@@ -60,7 +62,7 @@ public:
 
     void addLocation(const Location& location) { locations.push_back(location); }
 
-
+	string findLocation(const string& path);
 
 private:
     string     host;
@@ -73,7 +75,7 @@ private:
 
 };
 
-void parser(const char *file, int argc, Server& config);
+void parser(const char *file, Server& config);
 void printLocations(const Server& config);
 
 #endif

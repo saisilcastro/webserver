@@ -77,11 +77,7 @@ static void erase(std::string &line) {
         line.erase(line.find(CLOSE_BRACKET), 1);
 }
 
-void parser(const char *file, int argc, Server& config) {
-    if (argc == 1) {
-        return;
-    }
-
+void parser(const char *file, Server& config) {
     std::ifstream in(file);
     if (!in.is_open()) {
         throw std::runtime_error("Error: Could not open file. Using default settings.");

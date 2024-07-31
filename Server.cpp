@@ -100,6 +100,9 @@ string  Server::createPacket(int client) {
                         packetCreated = true;
                         if (master.getFileLen()) {
                             string path = "./" + root + "/upload/" + master.getFileName();
+							{
+								cout << master.getFileName() << endl;
+							}
                             if (master.isMethod("POST")) {
                                 struct stat mStat;
                                 if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
@@ -185,13 +188,37 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
     delete []content;
 }
 
+string Server::findLocation(const string& path)
+{
+	vector<Location>::const_iterator start = locations.begin();
+	vector<Location>::const_iterator end = locations.end();
+
+	while(start != end)
+	{
+		map<string, string>::const_iterator it = start->directives.begin();
+		map<string, string>::const_iterator ite = start->directives.end();
+		while(it != ite)
+		{
+			if(it->first == path)
+				return it->second;
+		}
+	}
+	return "";
+}
+
 void    Server::response(int client, string path, string protocol) {
     size_t  pos = path.rfind(".");
     Stream  stream("");
-
+	
     mimeMaker(path);
     if (pos == string::npos)
-		stream.loadFile(root + "/index.html");
+	{
+		string index = findLocation("index");
+		if(!index.empty())
+			stream.loadFile(root + '/' + index);
+		else
+			stream.loadFile(root + "/index2.html");
+	}
     else {
         if ((pos = path.find(".")) != string::npos) {
             if (path.find("?") != string::npos) {
