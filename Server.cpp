@@ -188,7 +188,7 @@ void    Server::response(int client, string path, string protocol) {
     size_t  pos = path.rfind(".");
     stringstream    file;
     Stream          stream("");
-
+    cout << path << endl;
     mimeMaker(path);
     if (pos == string::npos) {
         file << root << "/index.html";
@@ -212,16 +212,6 @@ void    Server::requestTreat(int client, string data) {
 
 void Server::run(void) {
     int     client = -1;
-    // host = "127.0.0.1";
-    // port = "8080";
-    // root = "www";
-    // mime = "text/html";
-    cout << "host: " << host << endl;
-    cout << "port: " << port << endl;
-    cout << "root: " << root << endl;
-    cout << "mime: " << mime << endl;
-    cout << "sock: " << sock << endl;
-    
     while (1) {
         client = accept(sock, NULL,NULL);
         if (client == -1)
