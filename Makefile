@@ -1,23 +1,65 @@
-NAME = webserv
-SRC = main.cpp Server.cpp Stream.cpp Protocol.cpp parser.cpp
-OBJ = obj
-SRCOBJ = $(SRC:%.cpp=${OBJ}/%.o)
-CREATE = mkdir -p $(1)
-REMOVE = rm -rf $(1)
-FLAG = -Wall -Wextra -Werror -g3
-CPP = c++
+#------------------------------------------------------------------------------#
+#                                  GENERICS                                    #
+#------------------------------------------------------------------------------#
 
-all: $(NAME)
-$(NAME) : $(SRCOBJ)
-	$(CPP) $^ -std=c++98 -o $(NAME)
-${OBJ}/%.o : %.cpp
-	$(call CREATE,${OBJ})
-	$(CPP) -std=c++98 $(FLAG) -c $< -o $@
-clean:
-	$(call REMOVE,${OBJ})
-fclean: clean
-	$(call REMOVE,${NAME})
-re: fclean all
+.DEFAULT_GOAL := all
+.DELETE_ON_ERROR:
+.PHONY: all clean fclean re debug run gdb
+
+VERBOSE ?= TRUE
+ifeq ($(VERBOSE),TRUE)
+    HIDE :=
+else
+    HIDE := @
+endif
+
+#------------------------------------------------------------------------------#
+#                                VARIABLES                                     #
+#------------------------------------------------------------------------------#
+
+CC         := c++
+CFLAGS     := -std=c++98 -g3 -Wall -Wextra -Werror
+DEBUG_FLAGS := -DDEBUG
+RM         := rm -rf
+INCLUDE    := -Iinclude
+
+NAME       := webserver
+SRCDIR     := src
+OBJDIR     := objs
+SRCS       := $(wildcard $(SRCDIR)/*.cpp)
+OBJS       := $(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+INC        := $(wildcard include/*.hpp include/*.h)
+
+# Create object directory if it doesn't exist
+$(OBJDIR):
+	@mkdir -p $(OBJDIR)
+
+#------------------------------------------------------------------------------#
+#                                 TARGETS                                      #
+#------------------------------------------------------------------------------#
+
+all: $(OBJDIR) $(NAME)
 
 run: all
 	clear && ./$(NAME) file.conf
+
+# Generates the output file
+$(NAME): $(OBJS)
+	$(HIDE)$(CC) $(CFLAGS) $(OBJS) -o $@
+
+# Compiles sources into objects
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(INC)
+	@mkdir -p $(@D)
+	$(HIDE)$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
+
+clean:
+	$(HIDE)$(RM) $(OBJDIR)
+
+# Removes objects and executables
+fclean: clean
+	$(HIDE)$(RM) $(NAME)
+
+re: fclean all
+
+gdb:
+	gnome-terminal --maximize -- bash -c "sleep 0.3 && gdb --tui --args ./$(NAME)"

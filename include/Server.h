@@ -26,7 +26,7 @@ using namespace std;
 struct Location
 {
 	string path;
-	//map<title, value>
+	//map<name, value>
 	map<string, string> directives;
 };
 

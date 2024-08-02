@@ -51,9 +51,7 @@ int Server::serverSocket(int type) {
     return sock;
 }
 
-Server::Server(void) : host("127.0.0.1"), port("8080"), sock(-1), root("www"), mime("text/html") {
-    if (serverSocket(SOCK_STREAM) == -1)
-        exit(-1); 
+Server::Server(void) : host("127.0.0.1"), port("8080"), sock(-1), root("www"), mime("text/html") { 
 }
 
 Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html") {
@@ -204,6 +202,8 @@ string Server::findLocation(const string& path)
 	return "";
 }
 
+
+
 void    Server::response(int client, string path, string protocol) {
     size_t  pos = path.rfind(".");
     Stream  stream("");
@@ -252,6 +252,10 @@ void    Server::requestTreat(int client, string data) {
 
 void Server::run(void) {
     int     client = -1;
+    cout << host << ":" << port << endl;
+    cout << "acessando index: " << findLocation("index") << endl;
+    if (serverSocket(SOCK_STREAM) == -1)
+        exit(-1);
     while (1) {
         client = accept(sock, NULL,NULL);
         if (client == -1)
