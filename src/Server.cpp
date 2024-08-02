@@ -51,19 +51,6 @@ int Server::serverSocket(int type) {
     return sock;
 }
 
-Server::Server(void) : host("127.0.0.1"), port("8080"), sock(-1), root("www"), mime("text/html") { 
-}
-
-Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html") {
-    ifstream in(file);
-    if (!in.is_open() || in.bad() || in.fail()) {
-        return;
-    }
-    cout << "ok" << endl;
-    in.close();
-}
-
-Server::Server(Server const &pointer) { *this = pointer; }
 
 string  Server::createPacket(int client) {
     fd_set          read_fd;
@@ -93,11 +80,16 @@ string  Server::createPacket(int client) {
 
                 if (piece > 0) {
                     currentSize += piece;
+                    cout << "Body size: " << bodySize << endl;
+                    if(bodySize != static_cast<size_t>(-1) && currentSize > bodySize)
+                    {
+                        cout << "ERRO" << endl;
+                    }
+                    cout << currentSize << endl;
                     if (packetCreated == false && !out.is_open()) {
                         master.extract(buffer);
                         packetCreated = true;
                         if (master.getFileLen()) {
-							cout << "entrou" << endl;
                             string path = "./" + root + "/upload/" + master.getFileName();
                             if (master.isMethod("POST")) {
                                 struct stat mStat;
@@ -184,26 +176,6 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
     delete []content;
 }
 
-string Server::findLocation(const string& path)
-{
-	vector<Location>::const_iterator start = locations.begin();
-	vector<Location>::const_iterator end = locations.end();
-
-	while(start != end)
-	{
-		map<string, string>::const_iterator it = start->directives.begin();
-		map<string, string>::const_iterator ite = start->directives.end();
-		while(it != ite)
-		{
-			if(it->first == path)
-				return it->second;
-		}
-	}
-	return "";
-}
-
-
-
 void    Server::response(int client, string path, string protocol) {
     size_t  pos = path.rfind(".");
     Stream  stream("");
@@ -211,7 +183,7 @@ void    Server::response(int client, string path, string protocol) {
     mimeMaker(path);
     if (pos == string::npos)
 	{
-		string index = findLocation("index");
+		string index = findDirectiveValue("index");
 		if(!index.empty())
 			stream.loadFile(root + '/' + index);
 		else
@@ -253,7 +225,7 @@ void    Server::requestTreat(int client, string data) {
 void Server::run(void) {
     int     client = -1;
     cout << host << ":" << port << endl;
-    cout << "acessando index: " << findLocation("index") << endl;
+    cout << "acessando index: " << findDirectiveValue("index") << endl;
     if (serverSocket(SOCK_STREAM) == -1)
         exit(-1);
     while (1) {
@@ -265,17 +237,3 @@ void Server::run(void) {
         close(client);
     }
 }
-
-Server &Server::operator=(Server const &pointer) {
-    if (this != &pointer) {
-        host = pointer.host;
-        port = pointer.port;
-        sock = pointer.sock;
-        root = pointer.root;
-        mime = pointer.mime;
-		locations = pointer.locations;
-    }
-    return *this;
-}
-
-Server::~Server(void) { close(sock); }

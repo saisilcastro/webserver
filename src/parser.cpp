@@ -40,7 +40,17 @@ static void processDirective(const std::string& line, Server& config, Location& 
 
     if (directive == "listen") {
         config.setPort(value);
-    } 
+    }
+    else if(directive == "max_body_size") {
+        try
+        {
+            config.setMaxBodySize(value);
+        }
+        catch(const std::exception& e)
+        {
+            throw std::runtime_error(e.what());
+        }
+    }
     else if(directive == "server_name") {
         config.setHost(value);
     }

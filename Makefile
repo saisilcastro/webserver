@@ -41,13 +41,12 @@ $(OBJDIR):
 all: $(OBJDIR) $(NAME)
 
 run: all
-	clear && ./$(NAME) file.conf
+	@clear
+	@./$(NAME) runMake.conf
 
-# Generates the output file
 $(NAME): $(OBJS)
 	$(HIDE)$(CC) $(CFLAGS) $(OBJS) -o $@
 
-# Compiles sources into objects
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(INC)
 	@mkdir -p $(@D)
 	$(HIDE)$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
@@ -55,7 +54,6 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(INC)
 clean:
 	$(HIDE)$(RM) $(OBJDIR)
 
-# Removes objects and executables
 fclean: clean
 	$(HIDE)$(RM) $(NAME)
 

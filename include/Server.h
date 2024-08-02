@@ -19,6 +19,12 @@
 #include <vector>
 #include <map>
 
+enum
+{
+    PATH,
+    NAME,
+    VALUE
+};
 
 typedef struct sockaddr_in SockAddrIn;
 using namespace std;
@@ -46,27 +52,32 @@ public:
     Server & operator = (Server const &);
     ~Server(void);
 
-	vector<Location> getLocations() const { return locations; }
-    vector<Location>::iterator getBegin() { return locations.begin(); }
-    vector<Location>::iterator getEnd() { return locations.end(); }
-    vector<Location>::const_iterator getBegin() const { return locations.begin(); }
-    vector<Location>::const_iterator getEnd() const { return locations.end(); }
-	void setPort(const string& port) { this->port = port; }
-    string getPort() const { return port; }
+	vector<Location> getLocations() const;
+    vector<Location>::iterator getBegin();
+    vector<Location>::iterator getEnd();
+    vector<Location>::const_iterator getBegin() const;
+    vector<Location>::const_iterator getEnd() const;
+    
+    void setPort(const string& port);
+    string getPort() const;
 
-    void setRoot(const string& root) { this->root = root; }
-    string getRoot() const { return root; }
+    void setRoot(const string& root);
+    string getRoot() const;
 
-    void setHost(const string& host) { this->host = host; }
-    string getHost() const { return host; }
+    void setHost(const string& host);
+    string getHost() const;
 
-    void addLocation(const Location& location) { locations.push_back(location); }
+    void addLocation(const Location& location);
 
-	string findLocation(const string& path);
+	string findLocationPath(const string& name);
+    string findDirectiveName(const string& name);
+    string findDirectiveValue(const string& path);
+    void setMaxBodySize(const string& size);
 
 private:
     string     host;
     string     port;
+    size_t     bodySize;
     int        sock;
     string     root;
     string     mime;
