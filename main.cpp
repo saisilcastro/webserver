@@ -1,145 +1,44 @@
 #include "Server.h"
 #include "Stream.h"
 
-static const std::string WHITESPACE = " \t\n\r\f\v";
-static const std::string COMMENT = "#";
-static const std::string OPEN_BRACKET = "{";
-static const std::string CLOSE_BRACKET = "}";
+void printLocations(const Server& config) {
+	cout << "--------------------------------" << endl;
+    cout << "Server settings:" << endl;
+    cout << "Host: " << config.getHost() << endl;
+    cout << "Port: " << config.getPort() << endl;
+    cout << "Root: " << config.getRoot() << endl;
+    cout << "Locations:" << endl;
 
-bool skipEmptyLines(std::string& line, int &bracketCount) {
-    std::string::size_type start = line.find_first_not_of(WHITESPACE);
-    std::string::size_type end = line.find_last_not_of(WHITESPACE);
-    if (start == std::string::npos || end == std::string::npos) {
-        return true;
+    vector<Location>::const_iterator start = config.getBegin();
+    vector<Location>::const_iterator end = config.getEnd();
+
+    while(start != end) {
+        cout << "Location: " << start->path << endl;
+        map<string, string>::const_iterator it = start->directives.begin();
+        map<string, string>::const_iterator ite = start->directives.end();
+        while (it != ite) {
+            cout << it->first << ": " << it->second << endl;
+            it++;
+        }
+        start++;
     }
-    line = line.substr(start, end - start + 1);
-    if (line.empty() || line[0] == COMMENT[0]) {
-        return true;
-    }
-    if (line.find("server {") != std::string::npos) {
-        bracketCount++;
-        return true;
-    }
-    if (line.find(OPEN_BRACKET) != std::string::npos) {
-        bracketCount++;
-    }
-    return false;
+	cout << "--------------------------------" << endl;
 }
 
-void validateSemicolon(const std::string& line) {
-    if (line.find(";") == std::string::npos && 
-        line.find(OPEN_BRACKET) == std::string::npos &&
-        line.find(CLOSE_BRACKET) == std::string::npos) {
-        throw std::runtime_error("Missing semicolon");
-    }
-}
-
-void processDirective(const std::string& line, Server& config, Location& currentLocation, bool inLocation) {
-    std::string::size_type spacePos = line.find(" ");
-    std::string directive = line.substr(0, spacePos);
-    std::string value = line.substr(spacePos + 1);
-
-    if (directive == "listen") {
-        config.setPort(value);
-    } 
-    else if(directive == "server_name") {
-        config.setHost(value);
-    }
-    else if (directive == "root") {
-        if (inLocation) {
-            currentLocation.directives[directive] = value;
-        } else {
-            config.setRoot(value);
-        }
-    }
-    else if (directive == "autoindex") {
-        if (inLocation) {
-            currentLocation.directives[directive] = value;
-        } else {
-            std::cerr << "Error: Unknown directive outside location: " << directive << std::endl;
-            throw std::runtime_error("Unknown directive outside location");
-        }
-    } else {
-        if (inLocation) {
-            currentLocation.directives[directive] = value;
-        } else {
-            std::cerr << "Error: Unknown directive outside location: " << directive << std::endl;
-            throw std::runtime_error("Unknown directive outside location");
-        }
-    }
-}
-
-void erase(std::string &line) {
-    if(line.find(";") != std::string::npos)
-        line.erase(line.find(";"), 1);
-    if(line.find(OPEN_BRACKET) != std::string::npos)
-        line.erase(line.find(OPEN_BRACKET), 1);
-    if(line.find(CLOSE_BRACKET) != std::string::npos)
-        line.erase(line.find(CLOSE_BRACKET), 1);
-}
-
-void parser(const char *file, int argc, Server& config) {
-    if (argc == 1) {
-        return;
-    }
-
-    std::ifstream in(file);
-    if (!in.is_open()) {
-        throw std::runtime_error("Error: Could not open file. Using default settings.");
-    }
-
-    std::string line;
-    Location currentLocation;
-    bool inLocation = false;
-    int bracketCount = 0;
-
-    while (std::getline(in, line)) {
-        if (skipEmptyLines(line, bracketCount))
-            continue;
-        if (line.find(CLOSE_BRACKET) != std::string::npos) {
-            bracketCount--;
-            if (inLocation) {
-                config.addLocation(currentLocation);
-                currentLocation = Location();
-                inLocation = false;
-            }
-            continue;
-        }
-        try {
-            validateSemicolon(line);
-        } catch (const std::exception& e) {
-            throw std::runtime_error("Error: " + std::string(e.what()) + ". Using default settings.");
-        }
-        erase(line);
-        if (line.find("location") != std::string::npos) {
-            inLocation = true;
-            currentLocation.path = line.substr(line.find(" ") + 1);
-            if (!currentLocation.path.empty() && currentLocation.path[currentLocation.path.size() - 1] == OPEN_BRACKET[0]) {
-                currentLocation.path.erase(currentLocation.path.size() - 1);
-            }
-        } else {
-            processDirective(line, config, currentLocation, inLocation);
-        }
-    }
-    in.close();
-    if (bracketCount != 0) {
-        throw std::runtime_error("Error: Unmatched opening bracket. Using default settings.");
-    }
-}
 
 int main(int argc, char **argv) {
     try {
         Server server;
         if (argc > 1) {
-            parser(argv[1], argc, server);
+            parser(argv[1], server);
         }
         server.run();
-    } catch (const std::runtime_error& e) {
-        std::cerr << e.what() << std::endl;
+    } catch (const runtime_error& e) {
+        cerr << e.what() << endl;
         //Using default settings
         Server server;
         server.run();
     }
-    return 0;
+	return 0;
 }
 

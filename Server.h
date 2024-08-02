@@ -25,8 +25,9 @@ using namespace std;
 
 struct Location
 {
-    string path;
-    map<string, string> directives;
+	string path;
+	//map<title, value>
+	map<string, string> directives;
 };
 
 class Server {
@@ -43,9 +44,14 @@ public:
     void    postPrepare(string);
     void    run(void);
     Server & operator = (Server const &);
-      ~Server(void);
-    
-    void setPort(const string& port) { this->port = port; }
+    ~Server(void);
+
+	vector<Location> getLocations() const { return locations; }
+    vector<Location>::iterator getBegin() { return locations.begin(); }
+    vector<Location>::iterator getEnd() { return locations.end(); }
+    vector<Location>::const_iterator getBegin() const { return locations.begin(); }
+    vector<Location>::const_iterator getEnd() const { return locations.end(); }
+	void setPort(const string& port) { this->port = port; }
     string getPort() const { return port; }
 
     void setRoot(const string& root) { this->root = root; }
@@ -55,13 +61,8 @@ public:
     string getHost() const { return host; }
 
     void addLocation(const Location& location) { locations.push_back(location); }
-    
-    vector<Location> getLocations() const { return locations; }
-    vector<Location>::iterator getBegin() { return locations.begin(); }
-    vector<Location>::iterator getEnd() { return locations.end(); }
-    vector<Location>::const_iterator getBegin() const { return locations.begin(); }
-    vector<Location>::const_iterator getEnd() const { return locations.end(); }
 
+	string findLocation(const string& path);
 
 private:
     string     host;
@@ -70,7 +71,11 @@ private:
     string     root;
     string     mime;
     Protocol   master;
-    vector<Location> locations;
+	vector<Location> locations;
+
 };
+
+void parser(const char *file, Server& config);
+void printLocations(const Server& config);
 
 #endif
