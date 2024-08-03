@@ -80,10 +80,6 @@ string  Server::createPacket(int client) {
 
                 if (piece > 0) {
                     currentSize += piece;
-                    if(bodySize != static_cast<size_t>(-1) && currentSize > bodySize)
-                    {
-                        cout << "ERRO" << endl;
-                    }
                     if (packetCreated == false && !out.is_open()) {
                         master.extract(buffer);
                         packetCreated = true;
@@ -101,7 +97,6 @@ string  Server::createPacket(int client) {
                             offset = (size_t)master.getHeaderLen();
                         }
                     }
-
                     size_t  dataLen = piece - offset;
                     size_t  remainingLen = size_t(master.getFileLen()) - writtenByte;
 
@@ -113,8 +108,16 @@ string  Server::createPacket(int client) {
                     }
                     if (master.isMethod("POST"))
                         cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
-                    if (writtenByte >= master.getFileLen())
+                    if(writtenByte >= master.getFileLen() || master.getFileLen() > MaxBodySize)
+                    {
+                        if(MaxBodySize > master.getFileLen())
+                            creating = false;
                         break;
+                    }
+                    if(master.getFileLen() > MaxBodySize)
+                    {
+                        creating = false;
+                    }
                     offset = 0;
                 }
                 else
@@ -122,6 +125,7 @@ string  Server::createPacket(int client) {
             }
         }
     }
+    TMPBODYSIZE = master.getFileLen();
     out.close();
     return "";
 }
@@ -174,20 +178,23 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
     delete []content;
 }
 
-void    Server::response(int client, string path, string protocol) {
-    size_t  pos = path.rfind(".");
-    Stream  stream("");
-	
+void Server::response(int client, string path, string protocol) {
+    size_t pos = path.rfind(".");
+    Stream stream("");
+
     mimeMaker(path);
-    if (pos == string::npos)
-	{
-		string index = findDirectiveValue("index");
-		if(!index.empty())
-			stream.loadFile(root + '/' + index);
-		else
-			stream.loadFile(root + "/index2.html");
-	}
-    else {
+    if (TMPBODYSIZE > MaxBodySize) {
+        stream.loadFile("www/413.html");
+        contentMaker(client, "HTTP/1.1 413 Request Entity Too Large", "close", stream.getStream(), stream.streamSize());
+        return;
+    }
+    if (pos == string::npos) {
+        string index = findDirectiveValue("index");
+        if (!index.empty())
+            stream.loadFile(root + '/' + index);
+        else
+            stream.loadFile(root + "/index2.html");
+    } else {
         if ((pos = path.find(".")) != string::npos) {
             if (path.find("?") != string::npos) {
                 if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
@@ -199,8 +206,7 @@ void    Server::response(int client, string path, string protocol) {
                     else if (path.find(".py") != string::npos)
                         path = path.substr(0, pos + 3);
                 }
-            }
-            else {
+            } else {
                 if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
                     (path.find(".py") != string::npos && path.length() > pos + 3))
                     path = "/404.html";

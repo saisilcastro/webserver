@@ -66,7 +66,7 @@ string Server::findLocationPath(const string& path)
 
 // Orthodox Canonical Form
 
-Server::Server(void) : host("127.0.0.1"), port("8080"), bodySize(-1), sock(-1), root("www"), mime("text/html") { 
+Server::Server(void) : host("127.0.0.1"), port("8080"), MaxBodySize(-1), sock(-1), root("www"), mime("text/html") { 
 }
 
 Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html") {
@@ -88,7 +88,7 @@ Server &Server::operator=(Server const &pointer) {
         root = pointer.root;
         mime = pointer.mime;
 		locations = pointer.locations;
-        bodySize = pointer.bodySize;
+        MaxBodySize = pointer.MaxBodySize;
     }
     return *this;
 }
@@ -152,13 +152,13 @@ void Server::setMaxBodySize(const string& size)
     }
 
     if (size.find_first_of("Gg") != string::npos)
-        bodySize = bodySizeInBytes * 1024 * 1024 * 1024;
+        MaxBodySize = bodySizeInBytes * 1024 * 1024 * 1024;
     else if (size.find_first_of("Mm") != string::npos)
-        bodySize = bodySizeInBytes * 1024 * 1024;
+        MaxBodySize = bodySizeInBytes * 1024 * 1024;
     else if (size.find_first_of("Kk") != string::npos)
-        bodySize = bodySizeInBytes * 1024;
+        MaxBodySize = bodySizeInBytes * 1024;
     else if (size.find_first_not_of("0123456789") == string::npos)
-        bodySize = bodySizeInBytes;
+        MaxBodySize = bodySizeInBytes;
     else
         throw std::runtime_error("Invalid body size, using default file .conf");
 }

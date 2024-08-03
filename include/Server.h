@@ -19,13 +19,6 @@
 #include <vector>
 #include <map>
 
-enum
-{
-    PATH,
-    NAME,
-    VALUE
-};
-
 typedef struct sockaddr_in SockAddrIn;
 using namespace std;
 
@@ -34,6 +27,11 @@ struct Location
 	string path;
 	//map<name, value>
 	map<string, string> directives;
+};
+
+struct flagHtmlPages
+{
+    bool TooLarge;
 };
 
 class Server {
@@ -77,8 +75,9 @@ public:
 private:
     string     host;
     string     port;
-    size_t     bodySize;
+    size_t     MaxBodySize;
     int        sock;
+    size_t     TMPBODYSIZE;
     string     root;
     string     mime;
     Protocol   master;
