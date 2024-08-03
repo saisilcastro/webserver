@@ -38,6 +38,15 @@ void    Protocol::extract(char *data){
     boundary = inside(parse.str(), "boundary=", "\n");
     file = inside(parse.str(), "filename=\"","\"");
     length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
+
+    cout << "Method: " << method << endl;
+    cout << "Path: " << path << endl;
+    cout << "Type: " << type << endl;
+    cout << "Connection: " << connection << endl;
+    cout << "Boundary: " << boundary << endl;
+    cout << "File: " << file << endl;
+    cout << "Length: " << length << endl;
+    cout << "Header: " << header << endl;
 }
 
 void    Protocol::setMethod(string value) {

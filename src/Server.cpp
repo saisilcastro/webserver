@@ -80,12 +80,10 @@ string  Server::createPacket(int client) {
 
                 if (piece > 0) {
                     currentSize += piece;
-                    cout << "Body size: " << bodySize << endl;
                     if(bodySize != static_cast<size_t>(-1) && currentSize > bodySize)
                     {
                         cout << "ERRO" << endl;
                     }
-                    cout << currentSize << endl;
                     if (packetCreated == false && !out.is_open()) {
                         master.extract(buffer);
                         packetCreated = true;
