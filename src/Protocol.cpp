@@ -35,7 +35,7 @@ void    Protocol::extract(char *data){
 	if ((pos = parse.str().find("\r\n\r\n")) != string::npos)
         header = parse.str().substr(pos + 4).find("\r\n\r\n") + pos + 8;
     connection = inside(parse.str(), "Connection: ", "\n");
-    boundary = inside(parse.str(), "boundary=", "\n");
+    boundary = inside(parse.str(), "boundary=", "\r\n");
     file = inside(parse.str(), "filename=\"","\"");
     length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
 }

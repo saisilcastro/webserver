@@ -60,17 +60,23 @@ string  Server::createPacket(int client) {
     char            buffer[65535];
     size_t          currentSize = 0;
     size_t          writtenByte = 0;
-    size_t          offset;
+    size_t          offset = 0;
     int             piece;
     ofstream        out; 
- 
+
     master.reset();
     while (creating) {
         FD_ZERO(&read_fd);
         FD_SET(client, &read_fd);
 
-        timeout.tv_sec = 10;
-        timeout.tv_usec = 0;
+        if (!packetCreated || MaxBodySize < master.getFileLen()) {
+            timeout.tv_sec = 10;
+            timeout.tv_usec = 0;
+        }
+        else {
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 100000;
+        }
         int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
         if (receiving <= 0)
             creating = false;
@@ -83,7 +89,7 @@ string  Server::createPacket(int client) {
                     if (packetCreated == false && !out.is_open()) {
                         master.extract(buffer);
                         packetCreated = true;
-                        if (master.getFileLen()) {
+                        if (master.getFileLen() && master.getFileLen() < MaxBodySize) {
                             string path = "./" + root + "/upload/" + master.getFileName();
                             if (master.isMethod("POST")) {
                                 struct stat mStat;
@@ -94,7 +100,8 @@ string  Server::createPacket(int client) {
                             }
                             if (!out.is_open())
                                 continue ;
-                            offset = (size_t)master.getHeaderLen();
+                            if (master.getFileLen() < MaxBodySize)
+                                offset = (size_t)master.getHeaderLen();
                         }
                     }
                     size_t  dataLen = piece - offset;
@@ -103,17 +110,17 @@ string  Server::createPacket(int client) {
                     if (remainingLen < dataLen)
                         dataLen = remainingLen;
                     if (dataLen > 0) {
-                        out.write(buffer + offset, dataLen);
+                        char *sub = strstr(buffer + offset, master.getBoundary().c_str());
+                        if (sub)
+                            dataLen -= master.getBoundary().length() + 6;
+                        if (master.getFileLen() < MaxBodySize)
+                            out.write(buffer + offset, dataLen);
                         writtenByte += dataLen;
                     }
                     if (master.isMethod("POST"))
                         cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
-                    if(writtenByte >= master.getFileLen() || master.getFileLen() > MaxBodySize)
-                    {
-                        if(MaxBodySize > master.getFileLen())
-                            creating = false;
+                    if(writtenByte >= master.getFileLen())
                         break;
-                    }
                     if(master.getFileLen() > MaxBodySize)
                     {
                         creating = false;
@@ -168,6 +175,9 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
                                    "Content-Type: %s\n"
                                    "Content-Lenght: %li\n\n",
                                    protocol.c_str(), ctime(&m_time), connection.c_str(), mime.c_str(), len);
+    if (len) {
+
+    }
     char *content = new char[head_len + len];
     sprintf(content, "%s", head);
     memcpy(content + head_len, data, len);
@@ -175,7 +185,6 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
     if (ok == -1) {
         cerr << "could not send content\n";
     }
-    delete []content;
 }
 
 void Server::response(int client, string path, string protocol) {
@@ -183,19 +192,21 @@ void Server::response(int client, string path, string protocol) {
     Stream stream("");
 
     mimeMaker(path);
-    if (TMPBODYSIZE > MaxBodySize) {
-        stream.loadFile("www/413.html");
-        contentMaker(client, "HTTP/1.1 413 Request Entity Too Large", "close", stream.getStream(), stream.streamSize());
-        return;
-    }
     if (pos == string::npos) {
         string index = findDirectiveValue("index");
-        if (!index.empty())
+        if (MaxBodySize < master.getFileLen() && master.getFileLen() > 0) {
+            stream.loadFile(root + '/' + "413.html");
+        }
+        else if (!index.empty())
             stream.loadFile(root + '/' + index);
         else
             stream.loadFile(root + "/index2.html");
     } else {
-        if ((pos = path.find(".")) != string::npos) {
+        if (master.isMethod("POST") && MaxBodySize > master.getFileLen()) {
+            contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
+            path = "/413.html";
+        }
+        else if ((pos = path.find(".")) != string::npos) {
             if (path.find("?") != string::npos) {
                 if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
                     (path.find(".py") != string::npos && path[pos + 3]))
