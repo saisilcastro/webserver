@@ -51,21 +51,6 @@ int Server::serverSocket(int type) {
     return sock;
 }
 
-Server::Server(void) : host("127.0.0.1"), port("8080"), sock(-1), root("www"), mime("text/html") {
-    if (serverSocket(SOCK_STREAM) == -1)
-        exit(-1); 
-}
-
-Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html") {
-    ifstream in(file);
-    if (!in.is_open() || in.bad() || in.fail()) {
-        return;
-    }
-    cout << "ok" << endl;
-    in.close();
-}
-
-Server::Server(Server const &pointer) { *this = pointer; }
 
 string  Server::createPacket(int client) {
     fd_set          read_fd;
@@ -75,17 +60,23 @@ string  Server::createPacket(int client) {
     char            buffer[65535];
     size_t          currentSize = 0;
     size_t          writtenByte = 0;
-    size_t          offset;
+    size_t          offset = 0;
     int             piece;
     ofstream        out; 
- 
+
     master.reset();
     while (creating) {
         FD_ZERO(&read_fd);
         FD_SET(client, &read_fd);
 
-        timeout.tv_sec = 10;
-        timeout.tv_usec = 0;
+        if (!packetCreated || MaxBodySize < master.getFileLen()) {
+            timeout.tv_sec = 10;
+            timeout.tv_usec = 0;
+        }
+        else {
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 100000;
+        }
         int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
         if (receiving <= 0)
             creating = false;
@@ -98,7 +89,7 @@ string  Server::createPacket(int client) {
                     if (packetCreated == false && !out.is_open()) {
                         master.extract(buffer);
                         packetCreated = true;
-                        if (master.getFileLen()) {
+                        if (master.getFileLen() && master.getFileLen() < MaxBodySize) {
                             string path = "./" + root + "/upload/" + master.getFileName();
                             if (master.isMethod("POST")) {
                                 struct stat mStat;
@@ -109,22 +100,26 @@ string  Server::createPacket(int client) {
                             }
                             if (!out.is_open())
                                 continue ;
-                            offset = (size_t)master.getHeaderLen();
+                            if (master.getFileLen() < MaxBodySize)
+                                offset = (size_t)master.getHeaderLen();
                         }
                     }
-
                     size_t  dataLen = piece - offset;
                     size_t  remainingLen = size_t(master.getFileLen()) - writtenByte;
 
                     if (remainingLen < dataLen)
                         dataLen = remainingLen;
                     if (dataLen > 0) {
-                        out.write(buffer + offset, dataLen);
+                        char *sub = strstr(buffer + offset, master.getBoundary().c_str());
+                        if (sub)
+                            dataLen -= master.getBoundary().length() + 6;
+                        if (master.getFileLen() < MaxBodySize)
+                            out.write(buffer + offset, dataLen);
                         writtenByte += dataLen;
                     }
                     if (master.isMethod("POST"))
                         cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
-                    if (writtenByte >= master.getFileLen())
+                    if(writtenByte >= master.getFileLen())
                         break;
                     offset = 0;
                 }
@@ -175,6 +170,9 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
                                    "Content-Type: %s\n"
                                    "Content-Lenght: %li\n\n",
                                    protocol.c_str(), ctime(&m_time), connection.c_str(), mime.c_str(), len);
+    if (len) {
+
+    }
     char *content = new char[head_len + len];
     sprintf(content, "%s", head);
     memcpy(content + head_len, data, len);
@@ -182,18 +180,28 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
     if (ok == -1) {
         cerr << "could not send content\n";
     }
-    delete []content;
 }
 
-void    Server::response(int client, string path, string protocol) {
-    size_t  pos = path.rfind(".");
-    Stream  stream("");
+void Server::response(int client, string path, string protocol) {
+    size_t pos = path.rfind(".");
+    Stream stream("");
 
     mimeMaker(path);
-    if (pos == string::npos)
-        stream.loadFile(root + "/index.html");
-    else {
-        if ((pos = path.find(".")) != string::npos) {
+    if (pos == string::npos) {
+        string index = findDirectiveValue("index");
+        if (MaxBodySize < master.getFileLen() && master.getFileLen() > 0) {
+            stream.loadFile(root + '/' + "413.html");
+        }
+        else if (!index.empty())
+            stream.loadFile(root + '/' + index);
+        else
+            stream.loadFile(root + "/index2.html");
+    } else {
+        if (master.isMethod("POST") && MaxBodySize > master.getFileLen()) {
+            contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
+            path = "/413.html";
+        }
+        else if ((pos = path.find(".")) != string::npos) {
             if (path.find("?") != string::npos) {
                 if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
                     (path.find(".py") != string::npos && path[pos + 3]))
@@ -204,8 +212,7 @@ void    Server::response(int client, string path, string protocol) {
                     else if (path.find(".py") != string::npos)
                         path = path.substr(0, pos + 3);
                 }
-            }
-            else {
+            } else {
                 if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
                     (path.find(".py") != string::npos && path.length() > pos + 3))
                     path = "/404.html";
@@ -227,7 +234,10 @@ void    Server::requestTreat(int client, string data) {
 
 void Server::run(void) {
     int     client = -1;
-
+    cout << host << ":" << port << endl;
+    cout << "acessando index: " << findDirectiveValue("index") << endl;
+    if (serverSocket(SOCK_STREAM) == -1)
+        exit(-1);
     while (1) {
         client = accept(sock, NULL,NULL);
         if (client == -1)
@@ -237,16 +247,3 @@ void Server::run(void) {
         close(client);
     }
 }
-
-Server &Server::operator=(Server const &pointer) {
-    if (this != &pointer) {
-        host = pointer.host;
-        port = pointer.port;
-        sock = pointer.sock;
-        root = pointer.root;
-        mime = pointer.mime;
-    }
-    return *this;
-}
-
-Server::~Server(void) { close(sock); }
