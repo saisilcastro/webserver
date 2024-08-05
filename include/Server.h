@@ -19,6 +19,8 @@
 #include <vector>
 #include <map>
 
+class Stream;
+
 typedef struct sockaddr_in SockAddrIn;
 using namespace std;
 
@@ -63,7 +65,7 @@ public:
 
     void addLocation(const Location& location);
 
-	string findLocationPath(const string& name);
+	Location findLocationPath(const string& name);
     string findDirectiveName(const string& name);
     string findDirectiveValue(const string& path);
     void setMaxBodySize(const string& size);
@@ -71,7 +73,11 @@ public:
     void addErrorPage(const string& error, const string& path, struct Location& location);
     string getErrorPage(const string& error);
     string getErrorPage(const string& error, struct Location& location);
-
+    void handleDeleteMethod(const string &path);
+    string adjustScriptPath(const string &path);
+    void loadIndexPage(Stream &stream);
+    void loadErrorPage(Stream &stream, const string &errorCode);
+    
 private:
     string     host;
     string     port;

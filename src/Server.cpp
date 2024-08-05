@@ -182,52 +182,104 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
     }
 }
 
+string getPageDefault(const string &errorCode) {
+    static map<string, string> errorPages;
+    if (errorPages.empty()) {
+        errorPages["404"] = "www/defaultPages/404.html";
+        errorPages["413"] = "www/defaultPages/413.html";
+    }
+    
+    map<string, string>::iterator it = errorPages.find(errorCode);
+    if (it != errorPages.end()) {
+        return it->second;
+    }
+    return("");
+}
+
+string extractURL(string &path)
+{
+    for(size_t i = 1; i < path.length(); i++)
+    {
+        if(path[i] == '/')
+            return(path.substr(0, i) + ' ');
+    }
+    if(path.length() > 1)
+        return(path + ' ');
+    return "";
+}
+
+void Server::loadErrorPage(Stream &stream, const string &errorCode) {
+    cout << "Error: " << errorCode << endl;
+    string page = errorPages[errorCode];
+    if(page.empty())
+        stream.loadFile(getPageDefault(errorCode));
+    else
+        stream.loadFile(root + page);
+}
+
+void Server::loadIndexPage(Stream &stream) {
+    string index = findDirectiveValue("index");
+    if (!index.empty())
+        stream.loadFile(root + '/' + index);
+    else
+        stream.loadFile(root + "/index2.html");
+}
+
+string Server::adjustScriptPath(const string &path) {
+    size_t pos = path.find(".");
+    if (path.find("?") != string::npos) {
+        if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
+            (path.find(".py") != string::npos && path[pos + 3]))
+            return "/defaultPages/404.html";
+        else {
+            if (path.find(".php") != string::npos)
+                return path.substr(0, pos + 4);
+            else if (path.find(".py") != string::npos)
+                return path.substr(0, pos + 3);
+        }
+    } else {
+        if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
+            (path.find(".py") != string::npos && path.length() > pos + 3))
+            return "/defaultPages/404.html";
+    }
+    return path;
+}
+
+void Server::handleDeleteMethod(const string &path) {
+    struct stat mStat;
+    string file = root + path;
+    if (!stat(file.c_str(), &mStat) && mStat.st_size > 0)
+        remove(file.c_str());
+}
+
 void Server::response(int client, string path, string protocol) {
     size_t pos = path.rfind(".");
     Stream stream("");
-
+    string url = extractURL(path);
+    Location location = findLocationPath(url);
+    cout << "url: " << url << endl;
+    if(url == "")
+        location.path = "www/index.html";
+    
     if (master.isMethod() != DELETE) {
         mimeMaker(path);
         if (pos == string::npos) {
-            string index = findDirectiveValue("index");
-            if (MaxBodySize < master.getFileLen() && master.getFileLen() > 0) {
-                stream.loadFile(root + "/defaultPages/413.html");
-            }
-            else if (!index.empty())
-                stream.loadFile(root + '/' + index);
+            if (MaxBodySize < master.getFileLen() && master.getFileLen() > 0)
+                loadErrorPage(stream, "413");
+            else if(location.path.empty())
+                loadErrorPage(stream, "404");
             else
-                stream.loadFile(root + "/index2.html");
+                loadIndexPage(stream);
         } else {
             if (master.isMethod() == POST && MaxBodySize > master.getFileLen()) {
                 contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
                 path = "/defaultPages/413.html";
-            }
-            else if ((pos = path.find(".")) != string::npos) {
-                if (path.find("?") != string::npos) {
-                    if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
-                        (path.find(".py") != string::npos && path[pos + 3]))
-                        path = "/defaultPages/404.html";
-                    else {
-                        if (path.find(".php") != string::npos)
-                            path = path.substr(0, pos + 4);
-                        else if (path.find(".py") != string::npos)
-                            path = path.substr(0, pos + 3);
-                    }
-                } else {
-                    if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
-                        (path.find(".py") != string::npos && path.length() > pos + 3))
-                        path = "/defaultPages/404.html";
-                }
-            }
+            } else
+                path = adjustScriptPath(path);
             stream.loadFile(root + path);
         }
-    }
-    else {
-        struct stat mStat;
-        string file = root + path;
-        if (!stat(file.c_str(), &mStat) && mStat.st_size > 0)
-            remove(file.c_str());
-    }
+    } else
+        handleDeleteMethod(path);
     contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
 }
 
@@ -235,17 +287,14 @@ void    Server::requestTreat(int client, string data) {
     (void)data;
     if (master.isMethod() == GET)
         response(client, master.getPath(), master.getType());
-    else if (master.isMethod() == POST) {
+    else if (master.isMethod() == POST)
         response(client, master.getPath(), master.getType());
-    }
-    else if (master.isMethod() == DELETE) {
+    else if (master.isMethod() == DELETE)
         response(client, master.getPath(), master.getType());
-    }
 }
 
 void Server::run(void) {
     int     client = -1;
-    printLocations(*this);
     if (serverSocket(SOCK_STREAM) == -1)
         exit(-1);
     while (1) {

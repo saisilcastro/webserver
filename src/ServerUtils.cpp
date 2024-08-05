@@ -32,13 +32,13 @@ string Server::findDirectiveName(const string& path)
 {
     vector<Location>::const_iterator start = locations.begin();
     vector<Location>::const_iterator end = locations.end();
-
     while(start != end)
     {
         map<string, string>::const_iterator it = start->directives.begin();
         map<string, string>::const_iterator ite = start->directives.end();
         while(it != ite)
-        {
+        {  
+            cout << "path: " << path << " it->second: " << it->second << endl;
             if(it->second == path)
                 return it->first;
             ++it;
@@ -49,18 +49,17 @@ string Server::findDirectiveName(const string& path)
 }
 
 
-string Server::findLocationPath(const string& path)
+Location Server::findLocationPath(const string& path)
 {
     vector<Location>::const_iterator start = locations.begin();
     vector<Location>::const_iterator end = locations.end();
-
     while(start != end)
     {
         if(start->path == path)
-            return start->path;
+            return *start;
         ++start;
     }
-    return "";
+    return Location();
 }
 
 
