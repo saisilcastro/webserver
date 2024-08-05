@@ -77,7 +77,6 @@ private:
     string     port;
     size_t     MaxBodySize;
     int        sock;
-    size_t     TMPBODYSIZE;
     string     root;
     string     mime;
     Protocol   master;
