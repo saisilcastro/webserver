@@ -91,7 +91,7 @@ string  Server::createPacket(int client) {
                         packetCreated = true;
                         if (master.getFileLen() && master.getFileLen() < MaxBodySize) {
                             string path = "./" + root + "/upload/" + master.getFileName();
-                            if (master.isMethod("POST")) {
+                            if (master.isMethod() == POST) {
                                 struct stat mStat;
                                 if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
                                     remove(path.c_str());
@@ -117,7 +117,7 @@ string  Server::createPacket(int client) {
                             out.write(buffer + offset, dataLen);
                         writtenByte += dataLen;
                     }
-                    if (master.isMethod("POST"))
+                    if (master.isMethod() == POST)
                         cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
                     if(writtenByte >= master.getFileLen())
                         break;
@@ -186,48 +186,59 @@ void Server::response(int client, string path, string protocol) {
     size_t pos = path.rfind(".");
     Stream stream("");
 
-    mimeMaker(path);
-    if (pos == string::npos) {
-        string index = findDirectiveValue("index");
-        if (MaxBodySize < master.getFileLen() && master.getFileLen() > 0) {
-            stream.loadFile(root + '/' + "413.html");
-        }
-        else if (!index.empty())
-            stream.loadFile(root + '/' + index);
-        else
-            stream.loadFile(root + "/index2.html");
-    } else {
-        if (master.isMethod("POST") && MaxBodySize > master.getFileLen()) {
-            contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
-            path = "/413.html";
-        }
-        else if ((pos = path.find(".")) != string::npos) {
-            if (path.find("?") != string::npos) {
-                if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
-                    (path.find(".py") != string::npos && path[pos + 3]))
-                    path = "/404.html";
-                else {
-                    if (path.find(".php") != string::npos)
-                        path = path.substr(0, pos + 4);
-                    else if (path.find(".py") != string::npos)
-                        path = path.substr(0, pos + 3);
-                }
-            } else {
-                if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
-                    (path.find(".py") != string::npos && path.length() > pos + 3))
-                    path = "/404.html";
+    if (master.isMethod() != DELETE) {
+        mimeMaker(path);
+        if (pos == string::npos) {
+            string index = findDirectiveValue("index");
+            if (MaxBodySize < master.getFileLen() && master.getFileLen() > 0) {
+                stream.loadFile(root + '/' + "413.html");
             }
+            else if (!index.empty())
+                stream.loadFile(root + '/' + index);
+            else
+                stream.loadFile(root + "/index2.html");
+        } else {
+            if (master.isMethod() == POST && MaxBodySize > master.getFileLen()) {
+                contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
+                path = "/413.html";
+            }
+            else if ((pos = path.find(".")) != string::npos) {
+                if (path.find("?") != string::npos) {
+                    if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
+                        (path.find(".py") != string::npos && path[pos + 3]))
+                        path = "/404.html";
+                    else {
+                        if (path.find(".php") != string::npos)
+                            path = path.substr(0, pos + 4);
+                        else if (path.find(".py") != string::npos)
+                            path = path.substr(0, pos + 3);
+                    }
+                } else {
+                    if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
+                        (path.find(".py") != string::npos && path.length() > pos + 3))
+                        path = "/404.html";
+                }
+            }
+            stream.loadFile(root + path);
         }
-        stream.loadFile(root + path);
+    }
+    else {
+        struct stat mStat;
+        string file = root + path;
+        if (!stat(file.c_str(), &mStat) && mStat.st_size > 0)
+            remove(file.c_str());
     }
     contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
 }
 
 void    Server::requestTreat(int client, string data) {
     (void)data;
-    if (master.isMethod("GET"))
+    if (master.isMethod() == GET)
         response(client, master.getPath(), master.getType());
-    else if (master.isMethod("POST")) {
+    else if (master.isMethod() == POST) {
+        response(client, master.getPath(), master.getType());
+    }
+    else if (master.isMethod() == DELETE) {
         response(client, master.getPath(), master.getType());
     }
 }

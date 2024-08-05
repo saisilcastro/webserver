@@ -6,6 +6,12 @@
 #include <cstdlib>
 
 using namespace std;
+typedef enum{
+    INVALID_REQUEST,
+    GET,
+    POST,
+    DELETE
+}method_e;
 
 class Protocol {
     string  method;
@@ -19,17 +25,17 @@ class Protocol {
 public:
     Protocol(void);
     Protocol(char *);
-    void    reset(void);
-    void    extract(char *);
-    bool    isMethod(string);
-    void    setMethod(string);
-    string  getPath(void);
-    string  getType(void);
-    string  getConnection(void);
-    string  getBoundary(void);
-    string  getFileName(void);
-    size_t  getFileLen(void);
-    size_t  getHeaderLen(void);
+    void        reset(void);
+    void        extract(char *);
+    method_e    isMethod(void);
+    void        setMethod(string);
+    string      getPath(void);
+    string      getType(void);
+    string      getConnection(void);
+    string      getBoundary(void);
+    string      getFileName(void);
+    size_t      getFileLen(void);
+    size_t      getHeaderLen(void);
     ~Protocol(void);
 };
 
