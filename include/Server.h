@@ -27,11 +27,7 @@ struct Location
 	string path;
 	//map<name, value>
 	map<string, string> directives;
-};
-
-struct flagHtmlPages
-{
-    bool TooLarge;
+    map<string, string> errorPages;
 };
 
 class Server {
@@ -71,6 +67,10 @@ public:
     string findDirectiveName(const string& name);
     string findDirectiveValue(const string& path);
     void setMaxBodySize(const string& size);
+    void addErrorPage(const string& error, const string& path);
+    void addErrorPage(const string& error, const string& path, struct Location& location);
+    string getErrorPage(const string& error);
+    string getErrorPage(const string& error, struct Location& location);
 
 private:
     string     host;
@@ -81,7 +81,7 @@ private:
     string     mime;
     Protocol   master;
 	vector<Location> locations;
-
+    map<string, string> errorPages;
 };
 
 void parser(const char *file, Server& config);

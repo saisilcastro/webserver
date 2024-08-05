@@ -89,6 +89,7 @@ Server &Server::operator=(Server const &pointer) {
         mime = pointer.mime;
 		locations = pointer.locations;
         MaxBodySize = pointer.MaxBodySize;
+        errorPages = pointer.errorPages;
     }
     return *this;
 }
@@ -163,3 +164,18 @@ void Server::setMaxBodySize(const string& size)
         throw std::runtime_error("Invalid body size, using default file .conf");
 }
 
+void Server::addErrorPage(const string& error, const string& path) {
+    errorPages[error] = path;
+}
+
+void Server::addErrorPage(const string& error, const string& path, struct Location& location) {
+    location.errorPages[error] = path;
+}
+
+string Server::getErrorPage(const string& error) {
+    return errorPages[error];
+}
+
+string Server::getErrorPage(const string& error, struct Location& location) {
+    return location.errorPages[error];
+}

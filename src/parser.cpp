@@ -68,12 +68,27 @@ static void processDirective(const std::string& line, Server& config, Location& 
             std::cerr << "Error: Unknown directive outside location: " << directive << std::endl;
             throw std::runtime_error("Unknown directive outside location");
         }
-    } else {
+    }
+    else {
         if (inLocation) {
-            currentLocation.directives[directive] = value;
+            if(directive == "error_page") {
+                std::string error = value.substr(0, value.find(" "));
+                std::string path = value.substr(value.find(" ") + 1);
+                config.addErrorPage(error, path, currentLocation);
+            }
+            else
+                currentLocation.directives[directive] = value;
         } else {
-            std::cerr << "Error: Unknown directive outside location: " << directive << std::endl;
-            throw std::runtime_error("Unknown directive outside location");
+            if(directive == "error_page") {
+                std::string error = value.substr(0, value.find(" "));
+                std::string path = value.substr(value.find(" ") + 1);
+                config.addErrorPage(error, path);
+            }
+            else
+            {
+                std::cerr << "Error: Unknown directive outside location: " << directive << std::endl;
+                throw std::runtime_error("Unknown directive outside location");
+            }
         }
     }
 }

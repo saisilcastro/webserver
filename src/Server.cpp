@@ -191,7 +191,7 @@ void Server::response(int client, string path, string protocol) {
         if (pos == string::npos) {
             string index = findDirectiveValue("index");
             if (MaxBodySize < master.getFileLen() && master.getFileLen() > 0) {
-                stream.loadFile(root + '/' + "413.html");
+                stream.loadFile(root + "/defaultPages/413.html");
             }
             else if (!index.empty())
                 stream.loadFile(root + '/' + index);
@@ -200,13 +200,13 @@ void Server::response(int client, string path, string protocol) {
         } else {
             if (master.isMethod() == POST && MaxBodySize > master.getFileLen()) {
                 contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
-                path = "/413.html";
+                path = "/defaultPages/413.html";
             }
             else if ((pos = path.find(".")) != string::npos) {
                 if (path.find("?") != string::npos) {
                     if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
                         (path.find(".py") != string::npos && path[pos + 3]))
-                        path = "/404.html";
+                        path = "/defaultPages/404.html";
                     else {
                         if (path.find(".php") != string::npos)
                             path = path.substr(0, pos + 4);
@@ -216,7 +216,7 @@ void Server::response(int client, string path, string protocol) {
                 } else {
                     if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
                         (path.find(".py") != string::npos && path.length() > pos + 3))
-                        path = "/404.html";
+                        path = "/defaultPages/404.html";
                 }
             }
             stream.loadFile(root + path);
@@ -245,8 +245,7 @@ void    Server::requestTreat(int client, string data) {
 
 void Server::run(void) {
     int     client = -1;
-    cout << host << ":" << port << endl;
-    cout << "acessando index: " << findDirectiveValue("index") << endl;
+    printLocations(*this);
     if (serverSocket(SOCK_STREAM) == -1)
         exit(-1);
     while (1) {
