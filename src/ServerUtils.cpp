@@ -178,3 +178,16 @@ string Server::getErrorPage(const string& error) {
 string Server::getErrorPage(const string& error, struct Location& location) {
     return location.errorPages[error];
 }
+
+string extractURL(string &path)
+{
+    for(size_t i = 1; i < path.length(); i++)
+    {
+        if(path[i] == '/')
+            return(path.substr(0, i) + ' ');
+    }
+    cout << path + ' ' << endl;
+    if(path.length() == 1)
+        return(path + ' ');
+    return "";
+}

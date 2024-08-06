@@ -75,7 +75,7 @@ public:
     string getErrorPage(const string& error, struct Location& location);
     void handleDeleteMethod(const string &path);
     string adjustScriptPath(const string &path);
-    void loadIndexPage(Stream &stream);
+    void loadIndexPage(Stream &stream, Location &location);
     void loadErrorPage(Stream &stream, const string &errorCode);
     
 private:
@@ -92,5 +92,6 @@ private:
 
 void parser(const char *file, Server& config);
 void printLocations(const Server& config);
+string extractURL(string &path);
 
 #endif

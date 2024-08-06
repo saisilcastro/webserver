@@ -196,20 +196,7 @@ string getPageDefault(const string &errorCode) {
     return("");
 }
 
-string extractURL(string &path)
-{
-    for(size_t i = 1; i < path.length(); i++)
-    {
-        if(path[i] == '/')
-            return(path.substr(0, i) + ' ');
-    }
-    if(path.length() > 1)
-        return(path + ' ');
-    return "";
-}
-
 void Server::loadErrorPage(Stream &stream, const string &errorCode) {
-    cout << "Error: " << errorCode << endl;
     string page = errorPages[errorCode];
     if(page.empty())
         stream.loadFile(getPageDefault(errorCode));
@@ -217,12 +204,12 @@ void Server::loadErrorPage(Stream &stream, const string &errorCode) {
         stream.loadFile(root + page);
 }
 
-void Server::loadIndexPage(Stream &stream) {
-    string index = findDirectiveValue("index");
+void Server::loadIndexPage(Stream &stream, Location &location) {
+    string index = location.directives["index"];
     if (!index.empty())
         stream.loadFile(root + '/' + index);
     else
-        stream.loadFile(root + "/index2.html");
+        stream.loadFile(root + "/index.html");
 }
 
 string Server::adjustScriptPath(const string &path) {
@@ -258,9 +245,8 @@ void Server::response(int client, string path, string protocol) {
     string url = extractURL(path);
     Location location = findLocationPath(url);
     cout << "url: " << url << endl;
-    if(url == "")
+    if(url == "" || url == "/ ")
         location.path = "www/index.html";
-    
     if (master.isMethod() != DELETE) {
         mimeMaker(path);
         if (pos == string::npos) {
@@ -269,7 +255,7 @@ void Server::response(int client, string path, string protocol) {
             else if(location.path.empty())
                 loadErrorPage(stream, "404");
             else
-                loadIndexPage(stream);
+                loadIndexPage(stream, location);
         } else {
             if (master.isMethod() == POST && MaxBodySize > master.getFileLen()) {
                 contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
