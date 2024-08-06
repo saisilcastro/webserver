@@ -232,8 +232,14 @@ void Server::response(int client, string path, string protocol) {
     else {
         struct stat mStat;
         string file = root + path;
-        if (!stat(file.c_str(), &mStat) && mStat.st_size > 0)
-            remove(file.c_str());
+        if (!access(file.c_str(), F_OK) && !access(file.c_str(), R_OK | W_OK | X_OK)) {
+            if (!stat(file.c_str(), &mStat) && mStat.st_size > 0)
+                remove(file.c_str());
+        }
+        else {
+            status = " 403 Forbidden";
+            stream.loadFile(root + "/403.html");
+        }
     }
     contentMaker(client, protocol + status, "keep-alive", stream.getStream(), stream.streamSize());
 }
