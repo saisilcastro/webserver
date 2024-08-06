@@ -66,10 +66,10 @@ string Server::findLocationPath(const string& path)
 
 // Orthodox Canonical Form
 
-Server::Server(void) : host("127.0.0.1"), port("8080"), MaxBodySize(-1), sock(-1), root("www"), mime("text/html") { 
+Server::Server(void) : host("127.0.0.1"), port("8080"), MaxBodySize(-1), sock(-1), root("www"), mime("text/html"), transfer(true) { 
 }
 
-Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html") {
+Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html"), transfer(true) {
     ifstream in(file);
     if (!in.is_open() || in.bad() || in.fail()) {
         return;
@@ -89,6 +89,7 @@ Server &Server::operator=(Server const &pointer) {
         mime = pointer.mime;
 		locations = pointer.locations;
         MaxBodySize = pointer.MaxBodySize;
+        transfer = pointer.transfer;
     }
     return *this;
 }
