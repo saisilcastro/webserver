@@ -206,6 +206,7 @@ void Server::loadErrorPage(Stream &stream, const string &errorCode) {
 
 void Server::loadIndexPage(Stream &stream, Location &location) {
     string index = location.directives["index"];
+	cout << root + '/' + index << endl;
     if (!index.empty())
         stream.loadFile(root + '/' + index);
     else
@@ -243,10 +244,14 @@ void Server::response(int client, string path, string protocol) {
     size_t pos = path.rfind(".");
     Stream stream("");
     string url = extractURL(path);
+	cout << "URL: " << url << endl;
     Location location = findLocationPath(url);
-    cout << "url: " << url << endl;
     if(url == "" || url == "/ ")
+	{
         location.path = "www/index.html";
+	}
+
+	cout << "Location Path: " << location.path << endl;
     if (master.isMethod() != DELETE) {
         mimeMaker(path);
         if (pos == string::npos) {

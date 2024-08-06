@@ -58,6 +58,7 @@ static void processDirective(const std::string& line, Server& config, Location& 
         if (inLocation) {
             currentLocation.directives[directive] = value;
         } else {
+			cout << "entrou" << endl;
             config.setRoot(value);
         }
     }
