@@ -86,6 +86,7 @@ private:
     string     root;
     string     mime;
     Protocol   master;
+    bool       transfer;
 	vector<Location> locations;
     map<string, string> errorPages;
 };
