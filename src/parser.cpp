@@ -55,10 +55,13 @@ static void processDirective(const std::string& line, Server& config, Location& 
         config.setHost(value);
     }
     else if (directive == "root") {
+        if(value[0] == '.' && value[1] == '/')
+            value = value.substr(2);
+        if(value[0] == '/')
+            value = value.substr(1);
         if (inLocation) {
             currentLocation.directives[directive] = value;
         } else {
-			cout << "entrou" << endl;
             config.setRoot(value);
         }
     }

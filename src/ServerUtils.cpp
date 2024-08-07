@@ -56,7 +56,10 @@ Location Server::findLocationPath(const string& path)
     while(start != end)
     {
         if(start->path == path)
+        {
+            cout << "Retornou: " << start->path << endl;
             return *start;
+        }
         ++start;
     }
     return Location();
@@ -115,9 +118,48 @@ vector<Location>::const_iterator Server::getEnd() const {
     return locations.end();
 }
 
-void Server::setPort(const string& port) {
-    this->port = port;
+
+void trim(std::string& str) {
+    size_t start = str.find_first_not_of(" \t\n\r\f\v");
+    if (start == std::string::npos) {
+        str.clear();
+        return;
+    }
+    size_t end = str.find_last_not_of(" \t\n\r\f\v");
+    str = str.substr(start, end - start + 1);
 }
+
+void Server::setPort(std::string& port) {
+    if (port.find(",") != std::string::npos) {
+        size_t pos = 0;
+        std::string token;
+        while ((pos = port.find(",")) != std::string::npos) {
+            token = port.substr(0, pos);
+            trim(token);
+            if (!token.empty()) {
+                if (std::find(this->ports.begin(), this->ports.end(), token) == this->ports.end()) {
+                    this->ports.push_back(token);
+                }
+            }
+            port.erase(0, pos + 1);
+        }
+        trim(port);
+        if (!port.empty()) {
+            if (std::find(this->ports.begin(), this->ports.end(), port) == this->ports.end()) {
+                this->ports.push_back(port);
+            }
+        }
+    } else {
+        trim(port);
+        if (!port.empty()) {
+            if (std::find(this->ports.begin(), this->ports.end(), port) == this->ports.end()) {
+                this->ports.push_back(port);
+            }
+        }
+    }
+}
+
+
 
 string Server::getPort() const {
     return port;
@@ -145,10 +187,10 @@ void Server::addLocation(const Location& location) {
 
 void Server::setMaxBodySize(const string& size)
 {
-    int bodySizeInBytes = std::atoi(size.c_str());
+    int bodySizeInBytes = atoi(size.c_str());
 
     if (bodySizeInBytes == 0 && size[0] != '0') {
-        throw std::runtime_error("Invalid body size format, using default file .conf");
+        throw runtime_error("Invalid body size format, using default file .conf");
     }
 
     if (size.find_first_of("Gg") != string::npos)
@@ -160,7 +202,7 @@ void Server::setMaxBodySize(const string& size)
     else if (size.find_first_not_of("0123456789") == string::npos)
         MaxBodySize = bodySizeInBytes;
     else
-        throw std::runtime_error("Invalid body size, using default file .conf");
+        throw runtime_error("Invalid body size, using default file .conf");
 }
 
 void Server::addErrorPage(const string& error, const string& path) {

@@ -2,54 +2,58 @@
 #include "Server.h"
 #define MAX_CLIENT 10
 
-int Server::serverSocket(int type) {
-	struct addrinfo hints;
-	struct addrinfo *result;
-	struct addrinfo *cur;
-	int status;
-	int in_use = 1;
-	
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = type;
-	hints.ai_flags = AI_PASSIVE;
-	hints.ai_protocol = 0;
-	hints.ai_addr = NULL;
-	hints.ai_next = NULL;
-	if ((status = getaddrinfo(NULL, port.c_str(), &hints, &result)) != 0) {
-		cerr << "getaddrinfo: " << gai_strerror(status) << "\n";
-		return -1;
-	}
-	for (cur = result; cur; cur = cur->ai_next) {
-		if ((sock = socket(cur->ai_family, cur->ai_socktype, cur->ai_protocol)) == -1)
-			continue ;
-		if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &in_use, sizeof(int)) == -1) {
-			perror("address yet in use");
-			close(sock);
-			freeaddrinfo(result);
-			return -1;
-		}
-		if (!bind(sock, cur->ai_addr, cur->ai_addrlen))
-			break ;
-		close(sock);
-	}
-	freeaddrinfo(result);
-	if (cur == NULL) {
-		perror("could not bind");
-		return -1;
-	}
-	if (listen(sock, MAX_CLIENT) < 0) {
-		perror("listen failure");
-		close(sock);
-		return -1;
-	}
-	if (fcntl(sock, F_SETFL, O_NONBLOCK) < 0) {
-		perror("non block set error");
-		close(sock);
-		return -1;
-	}
-	return sock;
+int Server::serverSocket(int type, const std::string& port) {
+    struct addrinfo hints;
+    struct addrinfo *result;
+    struct addrinfo *cur;
+    int status;
+    int in_use = 1;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = type;
+    hints.ai_flags = AI_PASSIVE;
+    hints.ai_protocol = 0;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
+
+    if ((status = getaddrinfo(NULL, port.c_str(), &hints, &result)) != 0) {
+        cerr << "getaddrinfo: " << gai_strerror(status) << "\n";
+        return -1;
+    }
+
+    for (cur = result; cur; cur = cur->ai_next) {
+        if ((sock = socket(cur->ai_family, cur->ai_socktype, cur->ai_protocol)) == -1)
+            continue;
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &in_use, sizeof(int)) == -1) {
+            perror("address yet in use");
+            close(sock);
+            freeaddrinfo(result);
+            return -1;
+        }
+        if (!bind(sock, cur->ai_addr, cur->ai_addrlen))
+            break;
+        close(sock);
+    }
+    freeaddrinfo(result);
+
+    if (cur == NULL) {
+        perror("could not bind");
+        return -1;
+    }
+    if (listen(sock, MAX_CLIENT) < 0) {
+        perror("listen failure");
+        close(sock);
+        return -1;
+    }
+    if (fcntl(sock, F_SETFL, O_NONBLOCK) < 0) {
+        perror("non block set error");
+        close(sock);
+        return -1;
+    }
+    return sock;
 }
+
 
 
 string  Server::createPacket(int client) {
@@ -223,21 +227,64 @@ void Server::loadErrorPage(Stream &stream, const string &errorCode) {
 
 void Server::loadIndexPage(Stream &stream, Location &location) {
     string index = location.directives["index"];
-	cout << root + '/' + index << endl;
+    cout << "|" << root + '/' + index << "|" << endl;
     if (!index.empty())
         stream.loadFile(root + '/' + index);
     else
         stream.loadFile(root + "/index.html");
 }
 
+void Server::loadDirectoryPage(Stream &stream, Location &location) {
+
+    std::string html = "<html><head><title>Index of " + location.path + "</title></head><body><h1>Index of " + location.path + "</h1><hr><pre>";
+    DIR *dir;
+    struct dirent *ent;
+    if ((dir = opendir(location.path.c_str())) != NULL) {
+        while ((ent = readdir(dir)) != NULL) {
+            std::string fileName(ent->d_name);
+            html += "<a href=\"" + fileName + "\">" + fileName + "</a><br>";
+        }
+        closedir(dir);
+    } else {
+        cout << "." << location.path << "." << endl;
+        perror("could not open directory");
+    }
+    html += "</pre><hr></body></html>";
+
+    char tempFile[] = "/tmp/tmpFileXXXXXX";
+    int fd = mkstemp(tempFile);
+    if (fd == -1) {
+        perror("could not create temporary file");
+        return;
+    }
+
+    std::ofstream ofs(tempFile);
+    if (ofs.is_open()) {
+        ofs << html;
+        ofs.close();
+    } else {
+        perror("could not open temporary file for writing");
+        close(fd);
+        return;
+    }
+
+    stream.loadFile(tempFile);
+    close(fd);
+    std::remove(tempFile);
+}
+
+
 void Server::response(int client, string path, string protocol) {
 	size_t  pos = path.rfind(".");
 	Stream  stream("");
 	string  status = " 200 OK";
     string url = extractURL(path);
+    struct stat info;
     Location location = findLocationPath(url);
-    if(url == "") {location.path = "index.html";}
-
+    cout << location.directives["index"] << endl;
+    if(url == "")
+        location.path = "index.html";
+    string fullPath = root + url.substr(0, url.size() - 1);
 	if (transfer) {
 		if (master.isMethod() != DELETE) {
 			mimeMaker(path);
@@ -246,10 +293,17 @@ void Server::response(int client, string path, string protocol) {
 					loadErrorPage(stream, "413");
 					status = " 413 Content Too Large";
 				}
-				else if(location.path.empty())
-                    loadErrorPage(stream, "404");
-                else
+                else if(location.directives.find("index") != location.directives.end() || location.path == "index.html")
                     loadIndexPage(stream, location);
+                else if(stat(fullPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
+                {
+                    location.path = fullPath;
+                    loadDirectoryPage(stream, location);
+                }
+                else {
+                    loadErrorPage(stream, "404");
+                    status = " 404 Not Found";
+                }
 			} else {
 				if (master.isMethod() == POST && MaxBodySize > master.getFileLen()) {
 					contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
@@ -317,15 +371,45 @@ void    Server::requestTreat(int client, string data) {
 }
 
 void Server::run(void) {
-	int     client = -1;
-	if (serverSocket(SOCK_STREAM) == -1)
-		exit(-1);
-	while (1) {
-		client = accept(sock, NULL,NULL);
-		if (client == -1)
-			continue;
-		fcntl(client, F_SETFL, O_NONBLOCK);
-		requestTreat(client, createPacket(client));
-		close(client);
-	}
+    std::vector<int> sockets;
+    fd_set readfds;
+    for (size_t i = 0; i < ports.size(); ++i) {
+        int sock = serverSocket(SOCK_STREAM, ports[i]);
+        if (sock != -1) {
+            sockets.push_back(sock);
+        } else {
+            cerr << "Failed to bind to port " << ports[i] << endl;
+        }
+    }
+    while (true) {
+        FD_ZERO(&readfds);
+        int maxfd = -1;
+        for (std::vector<int>::iterator it = sockets.begin(); it != sockets.end(); ++it) {
+            int sock = *it;
+            FD_SET(sock, &readfds);
+            if (sock > maxfd) {
+                maxfd = sock;
+            }
+        }
+        int activity = select(maxfd + 1, &readfds, NULL, NULL, NULL);
+        if (activity < 0) {
+            perror("select error");
+            continue;
+        }
+        for (std::vector<int>::iterator it = sockets.begin(); it != sockets.end(); ++it) {
+            int sock = *it;
+            if (FD_ISSET(sock, &readfds)) {
+                int client = accept(sock, NULL, NULL);
+                if (client != -1) {
+                    fcntl(client, F_SETFL, O_NONBLOCK);
+                    requestTreat(client, createPacket(client));
+                    close(client);
+                } else {
+                    perror("accept error");
+                }
+            }
+        }
+    }
 }
+
+

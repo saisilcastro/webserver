@@ -18,6 +18,10 @@
 #include <ctime>
 #include <vector>
 #include <map>
+#include <algorithm>
+#include <dirent.h>
+#include <sys/types.h>
+
 
 class Stream;
 
@@ -37,7 +41,7 @@ public:
     Server(void);
     Server(char *);
     Server(Server const &);
-    int     serverSocket(int);
+    int     serverSocket(int, const string&);
     string  createPacket(int);
     void    requestTreat(int, string);
     string  mimeMaker(string);
@@ -54,7 +58,7 @@ public:
     vector<Location>::const_iterator getBegin() const;
     vector<Location>::const_iterator getEnd() const;
     
-    void setPort(const string& port);
+    void setPort(string&);
     string getPort() const;
 
     void setRoot(const string& root);
@@ -77,7 +81,7 @@ public:
     string adjustScriptPath(const string &path);
     void loadIndexPage(Stream &stream, Location &location);
     void loadErrorPage(Stream &stream, const string &errorCode);
-    
+    void loadDirectoryPage(Stream &stream, Location &location);
 private:
     string     host;
     string     port;
@@ -89,6 +93,7 @@ private:
     bool       transfer;
 	vector<Location> locations;
     map<string, string> errorPages;
+    vector<string> ports;
 };
 
 void parser(const char *file, Server& config);
