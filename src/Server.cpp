@@ -227,11 +227,22 @@ void Server::loadErrorPage(Stream &stream, const string &errorCode) {
 
 void Server::loadIndexPage(Stream &stream, Location &location) {
     string index = location.directives["index"];
-    cout << "|" << root + '/' + index << "|" << endl;
+	if(location.directives["root"] != "")
+		root = location.directives["root"];
+	else
+		root = this->root;
     if (!index.empty())
+	{
+		cout << "ENTROU 1" << endl;
         stream.loadFile(root + '/' + index);
+	}
     else
+	{
+		cout << "ENTROU 2" << endl;
         stream.loadFile(root + "/index.html");
+	}
+
+	cout << "index: |" << root + '/' + index << "|" << endl;
 }
 
 void Server::loadDirectoryPage(Stream &stream, Location &location) {
@@ -281,7 +292,6 @@ void Server::response(int client, string path, string protocol) {
     string url = extractURL(path);
     struct stat info;
     Location location = findLocationPath(url);
-    cout << location.directives["index"] << endl;
     if(url == "")
         location.path = "index.html";
     string fullPath = root + url.substr(0, url.size() - 1);
@@ -294,13 +304,18 @@ void Server::response(int client, string path, string protocol) {
 					status = " 413 Content Too Large";
 				}
                 else if(location.directives.find("index") != location.directives.end() || location.path == "index.html")
+				{
+					cout << "entrou INDEX" << endl;
                     loadIndexPage(stream, location);
+				}
                 else if(stat(fullPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
                 {
+					cout << "entrou DIRETORIO" << endl;
                     location.path = fullPath;
                     loadDirectoryPage(stream, location);
                 }
                 else {
+					cout << "entrou 404" << endl;
                     loadErrorPage(stream, "404");
                     status = " 404 Not Found";
                 }

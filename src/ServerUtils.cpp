@@ -56,10 +56,7 @@ Location Server::findLocationPath(const string& path)
     while(start != end)
     {
         if(start->path == path)
-        {
-            cout << "Retornou: " << start->path << endl;
             return *start;
-        }
         ++start;
     }
     return Location();

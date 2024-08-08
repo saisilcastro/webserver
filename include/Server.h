@@ -58,7 +58,7 @@ public:
     vector<Location>::const_iterator getBegin() const;
     vector<Location>::const_iterator getEnd() const;
     
-    void setPort(string&);
+    void setPort(string&);  
     string getPort() const;
 
     void setRoot(const string& root);
