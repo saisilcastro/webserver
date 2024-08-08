@@ -42,7 +42,7 @@ all: $(OBJDIR) $(NAME)
 
 run: all
 	@clear
-	@./$(NAME) runMake.conf
+	@./$(NAME) file.conf
 
 $(NAME): $(OBJS)
 	$(HIDE)$(CC) $(CFLAGS) $(OBJS) -o $@

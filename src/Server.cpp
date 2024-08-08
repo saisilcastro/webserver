@@ -1,6 +1,6 @@
 #include "Stream.h"
 #include "Server.h"
-#define MAX_CLIENT 10
+#define MAX_CLIENT 65535
 
 int Server::serverSocket(int type, const std::string& port) {
     struct addrinfo hints;
@@ -227,22 +227,20 @@ void Server::loadErrorPage(Stream &stream, const string &errorCode) {
 
 void Server::loadIndexPage(Stream &stream, Location &location) {
     string index = location.directives["index"];
-	if(location.directives["root"] != "")
-		root = location.directives["root"];
-	else
-		root = this->root;
-    if (!index.empty())
+	string tmpRoot = location.directives["root"];
+
+	if(index.empty())
 	{
-		cout << "ENTROU 1" << endl;
-        stream.loadFile(root + '/' + index);
-	}
-    else
-	{
-		cout << "ENTROU 2" << endl;
-        stream.loadFile(root + "/index.html");
+		index = findLocationPath("/ ").directives["index"];
+		if(index.empty())
+			index = "index.html";
 	}
 
-	cout << "index: |" << root + '/' + index << "|" << endl;
+	if(tmpRoot.empty())
+		tmpRoot = root;
+
+
+    stream.loadFile(tmpRoot + '/' + index);
 }
 
 void Server::loadDirectoryPage(Stream &stream, Location &location) {
@@ -257,7 +255,6 @@ void Server::loadDirectoryPage(Stream &stream, Location &location) {
         }
         closedir(dir);
     } else {
-        cout << "." << location.path << "." << endl;
         perror("could not open directory");
     }
     html += "</pre><hr></body></html>";
@@ -285,6 +282,7 @@ void Server::loadDirectoryPage(Stream &stream, Location &location) {
 }
 
 
+
 void Server::response(int client, string path, string protocol) {
 	size_t  pos = path.rfind(".");
 	Stream  stream("");
@@ -304,18 +302,13 @@ void Server::response(int client, string path, string protocol) {
 					status = " 413 Content Too Large";
 				}
                 else if(location.directives.find("index") != location.directives.end() || location.path == "index.html")
-				{
-					cout << "entrou INDEX" << endl;
                     loadIndexPage(stream, location);
-				}
                 else if(stat(fullPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
                 {
-					cout << "entrou DIRETORIO" << endl;
                     location.path = fullPath;
                     loadDirectoryPage(stream, location);
                 }
                 else {
-					cout << "entrou 404" << endl;
                     loadErrorPage(stream, "404");
                     status = " 404 Not Found";
                 }
@@ -386,6 +379,8 @@ void    Server::requestTreat(int client, string data) {
 }
 
 void Server::run(void) {
+	if(ports.empty())
+		ports.push_back("8080");
     std::vector<int> sockets;
     fd_set readfds;
     for (size_t i = 0; i < ports.size(); ++i) {

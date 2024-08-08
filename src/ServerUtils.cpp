@@ -38,7 +38,6 @@ string Server::findDirectiveName(const string& path)
         map<string, string>::const_iterator ite = start->directives.end();
         while(it != ite)
         {  
-            cout << "path: " << path << " it->second: " << it->second << endl;
             if(it->second == path)
                 return it->first;
             ++it;
@@ -73,7 +72,6 @@ Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"
     if (!in.is_open() || in.bad() || in.fail()) {
         return;
     }
-    cout << "ok" << endl;
     in.close();
 }
 
