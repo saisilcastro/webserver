@@ -203,6 +203,7 @@ void Server::response(int client, string path, string protocol) {
 
 	if (transfer) {
 		if (master.isMethod() != DELETE) {
+
 			mimeMaker(path);
 			if (pos == string::npos) {
 				string index = findDirectiveValue("index");
@@ -212,8 +213,13 @@ void Server::response(int client, string path, string protocol) {
 				}
 				else if (!index.empty())
 					stream.loadFile(root + '/' + index);
-				else
-					stream.loadFile(root + "/index2.html");
+				else {
+                    struct stat s;
+                    if (stat((root + path).c_str(), &s) == -1)
+                        stream.loadFile(root + "/404.html");
+                    else
+					    stream.loadFile(root + "/index2.html");
+                }
 			} else {
 				if (master.isMethod() == POST && MaxBodySize > master.getFileLen()) {
 					contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
