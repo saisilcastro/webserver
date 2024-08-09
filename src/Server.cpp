@@ -293,6 +293,7 @@ void Server::response(int client, string path, string protocol) {
     if(url == "")
         location.path = "index.html";
     string fullPath = root + url.substr(0, url.size() - 1);
+	cout << "fullPath: |" << fullPath << "|" << endl;
 	if (transfer) {
 		if (master.isMethod() != DELETE) {
 			mimeMaker(path);
@@ -302,15 +303,27 @@ void Server::response(int client, string path, string protocol) {
 					status = " 413 Content Too Large";
 				}
                 else if(location.directives.find("index") != location.directives.end() || location.path == "index.html")
+				{
+					cout << "loading index page\n";
                     loadIndexPage(stream, location);
+				}
                 else if(stat(fullPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
                 {
+					cout << "loading directory page\n";
                     location.path = fullPath;
                     loadDirectoryPage(stream, location);
                 }
                 else {
-                    loadErrorPage(stream, "404");
-                    status = " 404 Not Found";
+					if(stat((root + path).c_str(), &info) == -1)
+					{
+                    	loadErrorPage(stream, "404");
+                    	status = " 404 Not Found";
+					}
+					else
+					{
+						cout << "loading index2.html\n";
+						stream.loadFile(root + "/index2.html");
+					}
                 }
 			} else {
 				if (master.isMethod() == POST && MaxBodySize > master.getFileLen()) {
