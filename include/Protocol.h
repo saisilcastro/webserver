@@ -19,6 +19,7 @@ class Protocol {
     string  type;
     string  connection;
     string  boundary;
+    string  tmpHost;
     string  file;
     size_t  length;
     size_t  header;
@@ -36,6 +37,7 @@ public:
     string      getFileName(void);
     size_t      getFileLen(void);
     size_t      getHeaderLen(void);
+    string      getHost(void);
     ~Protocol(void);
 };
 

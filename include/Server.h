@@ -84,6 +84,7 @@ public:
     void loadDirectoryPage(Stream &stream, Location &location);
 private:
     string     host;
+    string    tmpHost;
     string     port;
     size_t     MaxBodySize;
     int        sock;

@@ -30,6 +30,11 @@ string inside(string text, string sub, string stop) {
 void    Protocol::extract(char *data){
     istringstream parse(data);
     size_t  pos;
+    if((pos = parse.str().find("Host: ")) != string::npos)
+        tmpHost = parse.str().substr(pos + 6, parse.str().find("\n", pos) - pos - 6);
+    pos = tmpHost.find(":");
+   if(pos != string::npos)
+        tmpHost = tmpHost.substr(0, pos);
 
     parse >> method >> path >> type;
    	if ((pos = parse.str().find("\r\n\r\n")) != string::npos)
@@ -72,6 +77,10 @@ string  Protocol::getBoundary(void) {
 
 string  Protocol::getFileName(void) {
     return file;
+}
+
+string Protocol::getHost(void){
+    return tmpHost;
 }
 
 size_t  Protocol::getFileLen(void) {

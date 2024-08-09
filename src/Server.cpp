@@ -97,6 +97,9 @@ string  Server::createPacket(int client) {
 					currentSize += piece;
 					if (packetCreated == false && !out.is_open()) {
 						master.extract(buffer);
+						if(this->host != "127.0.0.1" && master.getHost() != this->host)
+						{throw std::runtime_error("Host not found");}
+						
 						packetCreated = true;
 						if (master.getFileLen() && master.getFileLen() < MaxBodySize) {
 							path = "./" + root + "/upload/" + master.getFileName();
@@ -425,7 +428,10 @@ void Server::run(void) {
                 int client = accept(sock, NULL, NULL);
                 if (client != -1) {
                     fcntl(client, F_SETFL, O_NONBLOCK);
-                    requestTreat(client, createPacket(client));
+					try
+					{requestTreat(client, createPacket(client));}
+					catch(const std::runtime_error& e)
+					{cout << "Wrong host" << endl;}
                     close(client);
                 } else {
                     perror("accept error");
