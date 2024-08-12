@@ -241,9 +241,7 @@ void Server::loadIndexPage(Stream &stream, Location &location) {
 
 	if(tmpRoot.empty())
 		tmpRoot = root;
-
-
-    stream.loadFile(tmpRoot + '/' + index);
+    stream.loadFile(tmpRoot + location.path + '/' + index);
 }
 
 void Server::loadDirectoryPage(Stream &stream, Location &location) {
@@ -290,44 +288,35 @@ void Server::response(int client, string path, string protocol) {
 	size_t  pos = path.rfind(".");
 	Stream  stream("");
 	string  status = " 200 OK";
-    string url = extractURL(path);
+	string url = extractURL(path);
     struct stat info;
     Location location = findLocationPath(url);
+
     if(url == "")
         location.path = "index.html";
-    string fullPath = root + url.substr(0, url.size() - 1);
-	cout << "fullPath: |" << fullPath << "|" << endl;
+	
+    string fullPath = root + url;
 	if (transfer) {
 		if (master.isMethod() != DELETE) {
 			mimeMaker(path);
 			if (pos == string::npos) {
+				cout << "Path: " << path << endl;
 				if (MaxBodySize < master.getFileLen() && master.getFileLen() > 0) {
 					loadErrorPage(stream, "413");
 					status = " 413 Content Too Large";
 				}
-                else if(location.directives.find("index") != location.directives.end() || location.path == "index.html")
+				else if(stat(fullPath.c_str(), &info) == 0)
 				{
-					cout << "loading index page\n";
-                    loadIndexPage(stream, location);
-				}
-                else if(stat(fullPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
-                {
-					cout << "loading directory page\n";
-                    location.path = fullPath;
-                    loadDirectoryPage(stream, location);
-                }
-                else {
-					if(stat((root + path).c_str(), &info) == -1)
-					{
-                    	loadErrorPage(stream, "404");
-                    	status = " 404 Not Found";
-					}
+					if(location.directives.find("index") != location.directives.end())
+						loadIndexPage(stream, location);
 					else
-					{
-						cout << "loading index2.html\n";
-						stream.loadFile(root + "/index2.html");
-					}
-                }
+						loadDirectoryPage(stream, location);
+				}
+				else
+				{
+					status = " 404 Not Found";
+					loadErrorPage(stream, "404");
+				}
 			} else {
 				if (master.isMethod() == POST && MaxBodySize > master.getFileLen()) {
 					contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());

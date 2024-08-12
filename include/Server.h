@@ -100,5 +100,6 @@ private:
 void parser(const char *file, Server& config);
 void printLocations(const Server& config);
 string extractURL(string &path);
+std::string ft_strip(const std::string& s);
 
 #endif

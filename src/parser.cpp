@@ -104,6 +104,7 @@ static void erase(std::string &line) {
         line.erase(line.find(OPEN_BRACKET), 1);
     if(line.find(CLOSE_BRACKET) != std::string::npos)
         line.erase(line.find(CLOSE_BRACKET), 1);
+    line = ft_strip(line);
 }
 
 void parser(const char *file, Server& config) {

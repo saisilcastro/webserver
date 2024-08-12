@@ -54,6 +54,7 @@ Location Server::findLocationPath(const string& path)
     vector<Location>::const_iterator end = locations.end();
     while(start != end)
     {
+        cout << "|" << start->path << "|" << endl;
         if(start->path == path)
             return *start;
         ++start;
@@ -223,7 +224,15 @@ string extractURL(string &path)
     for(size_t i = 1; i < path.length(); i++)
     {
         if(path[i] == '/')
-            return(path.substr(0, i) + ' ');
+            return(path.substr(0, i));
     }
-    return (path + " ");
+    return (path);
+}
+
+std::string ft_strip(const std::string& s) {
+    std::string::size_type start = s.find_first_not_of(" \t\n\r\f\v");
+    if (start == std::string::npos)
+        return "";
+    std::string::size_type end = s.find_last_not_of(" \t\n\r\f\v");
+    return s.substr(start, end - start + 1);
 }
