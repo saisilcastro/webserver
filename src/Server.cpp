@@ -293,7 +293,7 @@ void Server::response(int client, string path, string protocol) {
     Location location = findLocationPath(url);
 
     if(url == "")
-        location.path = "index.html";
+        location = findLocationPath("/");
 	
     string fullPath = root + url;
 	if (transfer) {
