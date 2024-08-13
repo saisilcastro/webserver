@@ -82,6 +82,8 @@ public:
     void loadIndexPage(Stream &stream, Location &location);
     void loadErrorPage(Stream &stream, const string &errorCode);
     void loadDirectoryPage(Stream &stream, Location &location);
+	vector<string>& getPorts() { return (ports); } 
+
 private:
     string     host;
     string    tmpHost;
@@ -98,7 +100,7 @@ private:
 };
 
 void parser(const char *file, Server& config);
-void printLocations(const Server& config);
+void printLocations(Server& config);
 string extractURL(string &path);
 std::string ft_strip(const std::string& s);
 

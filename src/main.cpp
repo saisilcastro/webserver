@@ -1,11 +1,19 @@
 #include "Server.h"
 #include "Stream.h"
 
-void printLocations(const Server& config) {
+void printLocations(Server& config) {
     cout << "--------------------------------" << endl;
     cout << "Server settings:" << endl;
     cout << "Host: " << config.getHost() << endl;
-    cout << "Port: " << config.getPort() << endl;
+    cout << "Port: ";
+	cout << "Quantidade de portas: " << config.getPorts().size() << endl;
+	for(size_t i = 0; i < config.getPorts().size(); i++)
+	{
+		cout << config.getPorts()[i];
+		if(i + 1 < config.getPorts().size())
+			cout << ", ";
+	}
+	cout << endl;
     cout << "Root: " << config.getRoot() << endl;
     cout << "Error Pages:" << endl;
 
@@ -44,7 +52,7 @@ int main(int argc, char **argv) {
         if (argc > 1) {
             parser(argv[1], server);
         }
-        server.run();
+        // server.run();
     } catch (const runtime_error& e) {
         cerr << e.what() << endl;
         //Using default settings

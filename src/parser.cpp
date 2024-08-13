@@ -108,6 +108,8 @@ static void erase(std::string &line) {
 }
 
 void parser(const char *file, Server& config) {
+	(void)config;
+	vector<Server> servers;
     std::ifstream in(file);
     if (!in.is_open()) {
         throw std::runtime_error("Error: Could not open file. Using default settings.");
@@ -117,14 +119,21 @@ void parser(const char *file, Server& config) {
     Location currentLocation;
     bool inLocation = false;
     int bracketCount = 0;
-
+	Server *tmp;
     while (std::getline(in, line)) {
+		if(line.find("server {") != std::string::npos && bracketCount == 0)
+		{
+			if(!servers.empty())
+				tmp = &servers.back();
+			servers.push_back(Server());
+			tmp = &servers.back();
+		}
         if (skipEmptyLines(line, bracketCount))
             continue;
         if (line.find(CLOSE_BRACKET) != std::string::npos) {
             bracketCount--;
             if (inLocation) {
-                config.addLocation(currentLocation);
+                tmp->addLocation(currentLocation);
                 currentLocation = Location();
                 inLocation = false;
             }
@@ -143,11 +152,19 @@ void parser(const char *file, Server& config) {
                 currentLocation.path.erase(currentLocation.path.size() - 1);
             }
         } else {
-            processDirective(line, config, currentLocation, inLocation);
+            processDirective(line, *tmp, currentLocation, inLocation);
+			cout << "Portas size: " << servers.back().getPorts().size() << endl;
         }
     }
     in.close();
     if (bracketCount != 0) {
         throw std::runtime_error("Error: Unmatched opening bracket. Using default settings.");
     }
+	int i = 0;
+	for(vector<Server>::iterator it = servers.begin(); it != servers.end(); it++)
+	{
+		i++;
+		cout << "Server " << i << endl;
+		printLocations(*it);
+	}
 }

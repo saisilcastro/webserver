@@ -18,7 +18,7 @@ endif
 #------------------------------------------------------------------------------#
 
 CC         := c++
-CFLAGS     := -std=c++98 -g3 -Wall -Wextra -Werror
+CFLAGS     := -std=c++98 -ggdb -Wall -Wextra -Werror
 DEBUG_FLAGS := -DDEBUG
 RM         := rm -rf
 INCLUDE    := -Iinclude
@@ -42,7 +42,7 @@ all: $(OBJDIR) $(NAME)
 
 run: all
 	@clear
-	@./$(NAME) file.conf
+	@./$(NAME) twoServers.conf
 
 $(NAME): $(OBJS)
 	$(HIDE)$(CC) $(CFLAGS) $(OBJS) -o $@
