@@ -56,102 +56,104 @@ int Server::serverSocket(int type, const std::string& port) {
 
 
 
-string  Server::createPacket(int client) {
-	fd_set          read_fd;
-	struct timeval  timeout;
-	bool            packetCreated = false;
-	bool            creating = true;
-	char            buffer[65535];
-	size_t          currentSize = 0;
-	size_t          writtenByte = 0;
-	size_t          offset = 0;
-	int             piece;
-	string			path("");
-	ofstream        out; 
+string Server::createPacket(int client) {
+    fd_set read_fd;
+    struct timeval timeout;
+    bool packetCreated = false;
+    bool creating = true;
+    char buffer[65535];
+    size_t currentSize = 0;
+    size_t writtenByte = 0;
+    size_t offset = 0;
+    int piece;
+    string path("");
+    ofstream out;
 
-	master.reset();
-	transfer = false;
-	while (creating) {
-		FD_ZERO(&read_fd);
-		FD_SET(client, &read_fd);
+    master.reset();
+    transfer = false;
+    while (creating) {
+        FD_ZERO(&read_fd);
+        FD_SET(client, &read_fd);
 
-		if (!packetCreated || MaxBodySize < master.getFileLen()) {
-			timeout.tv_sec = 10;
-			timeout.tv_usec = 0;
-		}
-		else {
-			timeout.tv_sec = 0;
-			timeout.tv_usec = 100000;
-		}
-		int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
-		if (receiving <= 0) {
-			creating = false;
-			transfer = false;
-			cout << "not receiving\n";
-		}
-		else {
-			if (FD_ISSET(client, &read_fd)) {
-				piece = recv(client, buffer, 65535, 0);
+        if (!packetCreated || MaxBodySize < master.getFileLen()) {
+            timeout.tv_sec = 10;
+            timeout.tv_usec = 0;
+        } else {
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 100000;
+        }
 
-				if (piece > 0) {
-					currentSize += piece;
-					if (packetCreated == false && !out.is_open()) {
-						master.extract(buffer);
-						if(this->host != "127.0.0.1" && master.getHost() != this->host)
-						{throw std::runtime_error("Host not found");}
-						
-						packetCreated = true;
-						if (master.getFileLen() && master.getFileLen() < MaxBodySize) {
-							path = "./" + root + "/upload/" + master.getFileName();
-							if (master.isMethod() == POST) {
-								struct stat mStat;
-								if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
-									remove(path.c_str());
-								}
-								out.open(path.c_str(), ios::out | ios::binary);
-							}
-							if (!out.is_open())
-								continue ;
-							if (master.getFileLen() < MaxBodySize)
-								offset = (size_t)master.getHeaderLen();
-						}
-					}
-					size_t  dataLen = piece - offset;
-					size_t  remainingLen = size_t(master.getFileLen()) - writtenByte;
+        int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
+        if (receiving < 0) {
+            creating = false;
+            transfer = false;
+            cout << "not receiving\n";
+        } else {
+            if (FD_ISSET(client, &read_fd)) {
+                piece = recv(client, buffer, 65535, 0);
 
-					if (remainingLen < dataLen)
-						dataLen = remainingLen;
-					if (dataLen > 0) {
-						char *sub = strstr(buffer + offset, master.getBoundary().c_str());
-						if (sub)
-							dataLen -= master.getBoundary().length() + 6;
-						if (master.getFileLen() < MaxBodySize)
-							out.write(buffer + offset, dataLen);
-						writtenByte += dataLen;
-					}
-					if (master.isMethod() == POST)
-						cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
-					if(writtenByte >= master.getFileLen()) {
-						cout << "transfer done\n";
-						transfer = true;
-						break;
-					}
-					offset = 0;
-				}
-				else if (writtenByte < master.getFileLen()) {
-					transfer = false;
-					break ;
-				}
-			}
-		}
-	}
-	out.close();
-	if (!transfer) {
-		remove(path.c_str());
-		cout << "could not transfer " << path << endl;
-	}
-	return "";
+                if (piece > 0) {
+                    currentSize += piece;
+                    if (packetCreated == false && !out.is_open()) {
+                        master.extract(buffer);
+                        if (this->host != "127.0.0.1" && master.getHost() != this->host) {
+                            throw std::runtime_error("Host not found");
+                        }
+
+                        packetCreated = true;
+                        if (master.getFileLen() && master.getFileLen() < MaxBodySize) {
+                            path = "./" + root + "/upload/" + master.getFileName();
+                            if (master.isMethod() == POST) {
+                                struct stat mStat;
+                                if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
+                                    remove(path.c_str());
+                                }
+                                out.open(path.c_str(), ios::out | ios::binary);
+                            }
+                            if (!out.is_open())
+                                continue;
+                            if (master.getFileLen() < MaxBodySize)
+                                offset = (size_t)master.getHeaderLen();
+                        }
+                    }
+                    size_t dataLen = piece - offset;
+                    size_t remainingLen = size_t(master.getFileLen()) - writtenByte;
+
+                    if (remainingLen < dataLen)
+                        dataLen = remainingLen;
+                    if (dataLen > 0) {
+                        char *sub = strstr(buffer + offset, master.getBoundary().c_str());
+                        if (sub)
+                            dataLen -= master.getBoundary().length() + 6;
+                        if (master.getFileLen() < MaxBodySize)
+                            out.write(buffer + offset, dataLen);
+                        writtenByte += dataLen;
+                    }
+                    if (master.isMethod() == POST)
+                        cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
+                    if (writtenByte >= master.getFileLen()) {
+                        cout << "transfer done\n";
+                        transfer = true;
+						creating = false;
+                        break;
+                    }
+                    offset = 0;
+                } else if (writtenByte < master.getFileLen()) {
+                    transfer = false;
+					creating = false;
+                    break;
+                }
+            }
+        }
+    }
+    out.close();
+    if (!transfer) {
+        remove(path.c_str());
+        cout << "could not transfer " << path << endl;
+    }
+    return "";
 }
+
 
 string  Server::mimeMaker(string path) {
 	size_t  pos;
