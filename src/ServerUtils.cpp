@@ -3,19 +3,19 @@
 /**
  * @brief Returns the value of the directive
  * 
- * @param path It corresponds to the name of the directive in the `directives` map.
+ * @param path It corresponds to the name of the directive in the `data` map.
  * 
  * @return The value of the directive if found; otherwise, returns an empty string.
  */
 string Server::findDirectiveValue(const string& path)
 {
-    vector<Location>::const_iterator start = locations.begin();
-    vector<Location>::const_iterator end = locations.end();
+    vector<Location>::const_iterator start = location.begin();
+    vector<Location>::const_iterator end = location.end();
 
     while(start != end)
     {
-        map<string, string>::const_iterator it = start->directives.begin();
-        map<string, string>::const_iterator ite = start->directives.end();
+        map<string, string>::const_iterator it = start->data.begin();
+        map<string, string>::const_iterator ite = start->data.end();
         while(it != ite)
         {
             if(it->first == path)
@@ -30,12 +30,12 @@ string Server::findDirectiveValue(const string& path)
 
 string Server::findDirectiveName(const string& path)
 {
-    vector<Location>::const_iterator start = locations.begin();
-    vector<Location>::const_iterator end = locations.end();
+    vector<Location>::const_iterator start = location.begin();
+    vector<Location>::const_iterator end = location.end();
     while(start != end)
     {
-        map<string, string>::const_iterator it = start->directives.begin();
-        map<string, string>::const_iterator ite = start->directives.end();
+        map<string, string>::const_iterator it = start->data.begin();
+        map<string, string>::const_iterator ite = start->data.end();
         while(it != ite)
         {  
             if(it->second == path)
@@ -50,8 +50,8 @@ string Server::findDirectiveName(const string& path)
 
 Location Server::findLocationPath(const string& path)
 {
-    vector<Location>::const_iterator start = locations.begin();
-    vector<Location>::const_iterator end = locations.end();
+    vector<Location>::const_iterator start = location.begin();
+    vector<Location>::const_iterator end = location.end();
     while(start != end)
     {
         cout << "|" << start->path << "|" << endl;
@@ -76,7 +76,8 @@ Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"
     in.close();
 }
 
-Server::Server(Server const &pointer) { *this = pointer; }
+Server::Server(string _host, string _port, string _root, map<string, string> _error, vector<Location> _location)
+: host(_host), port(_port), root(_root), error(_error), location(_location){}
 
 Server &Server::operator=(Server const &pointer) {
     if (this != &pointer) {
@@ -85,7 +86,7 @@ Server &Server::operator=(Server const &pointer) {
         sock = pointer.sock;
         root = pointer.root;
         mime = pointer.mime;
-		locations = pointer.locations;
+		location = pointer.location;
         MaxBodySize = pointer.MaxBodySize;
         transfer = pointer.transfer;
     }
@@ -95,23 +96,23 @@ Server &Server::operator=(Server const &pointer) {
 Server::~Server(void) { close(sock); }
 
 vector<Location> Server::getLocations() const {
-    return locations;
+    return location;
 }
 
 vector<Location>::iterator Server::getBegin() {
-    return locations.begin();
+    return location.begin();
 }
 
 vector<Location>::iterator Server::getEnd() {
-    return locations.end();
+    return location.end();
 }
 
 vector<Location>::const_iterator Server::getBegin() const {
-    return locations.begin();
+    return location.begin();
 }
 
 vector<Location>::const_iterator Server::getEnd() const {
-    return locations.end();
+    return location.end();
 }
 
 
@@ -177,9 +178,9 @@ string Server::getHost() const {
     return host;
 }
 
-void Server::addLocation(const Location& location) {
-    locations.push_back(location);
-}
+/* void Server::addLocation(const Location& location) {
+    location.push_back(location);
+} */
 
 void Server::setMaxBodySize(const string& size)
 {
@@ -201,20 +202,12 @@ void Server::setMaxBodySize(const string& size)
         throw runtime_error("Invalid body size, using default file .conf");
 }
 
-void Server::addErrorPage(const string& error, const string& path) {
-    errorPages[error] = path;
+void Server::addErrorPage(const string& errorCode, const string& path) {
+    error[errorCode] = path;
 }
 
-void Server::addErrorPage(const string& error, const string& path, struct Location& location) {
-    location.errorPages[error] = path;
-}
-
-string Server::getErrorPage(const string& error) {
-    return errorPages[error];
-}
-
-string Server::getErrorPage(const string& error, struct Location& location) {
-    return location.errorPages[error];
+string Server::getErrorPage(const string& errorCode) {
+    return error[errorCode];
 }
 
 string extractURL(string &path)

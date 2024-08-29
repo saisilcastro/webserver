@@ -1,7 +1,7 @@
 #include "Server.h"
 #include "Stream.h"
 
-void printLocations(const Server& config) {
+/* void printLocations(const Server& config) {
     cout << "--------------------------------" << endl;
     cout << "Server settings:" << endl;
     cout << "Host: " << config.getHost() << endl;
@@ -35,22 +35,23 @@ void printLocations(const Server& config) {
     }
     cout << "--------------------------------" << endl;
 }
-
+ */
 
 
 int main(int argc, char **argv) {
-    try {
-        Server server;
-        if (argc > 1) {
-            parser(argv[1], server);
-        }
-        server.run();
-    } catch (const runtime_error& e) {
-        cerr << e.what() << endl;
-        //Using default settings
-        Server server;
-        server.run();
+    if (argc > 1) {
+        Config config(argv[1]);
+        size_t  max = config.infoGet().size();
+        vector<ServerInfo> info = config.infoGet();
+        Server server[max];
+        max = 0;
+        for (vector<ServerInfo>::iterator it = info.begin(); it != info.end(); ++it)
+            server[max++] = Server(it->name, it->port, it->root, it->error, it->location);
+        for (size_t i = 0; i < max; i++)
+            Run(server, max);
     }
-	return 0;
+    else {
+        Server server;
+    }
+    return (0);
 }
-

@@ -2,7 +2,7 @@
 #include "Server.h"
 #define MAX_CLIENT 65535
 
-int Server::serverSocket(int type, const std::string& port) {
+int Server::serverSocket(int type) {
     struct addrinfo hints;
     struct addrinfo *result;
     struct addrinfo *cur;
@@ -231,12 +231,12 @@ void Server::loadErrorPage(Stream &stream, const string &errorCode) {
 }
 
 void Server::loadIndexPage(Stream &stream, Location &location) {
-    string index = location.directives["index"];
-	string tmpRoot = location.directives["root"];
+    string index = location.data["index"];
+	string tmpRoot = location.data["root"];
 
 	if(index.empty())
 	{
-		index = findLocationPath("/ ").directives["index"];
+		index = findLocationPath("/ ").data["index"];
 		if(index.empty())
 			index = "index.html";
 	}
@@ -309,7 +309,7 @@ void Server::response(int client, string path, string protocol) {
 				}
 				else if(stat(fullPath.c_str(), &info) == 0)
 				{
-					if(location.directives.find("index") != location.directives.end())
+					if(location.data.find("index") != location.data.end())
 						loadIndexPage(stream, location);
 					else
 						loadDirectoryPage(stream, location);
@@ -385,51 +385,33 @@ void    Server::requestTreat(int client, string data) {
 	}
 }
 
-void Server::run(void) {
-	if(ports.empty())
-		ports.push_back("8080");
-    std::vector<int> sockets;
-    fd_set readfds;
-    for (size_t i = 0; i < ports.size(); ++i) {
-        int sock = serverSocket(SOCK_STREAM, ports[i]);
-        if (sock != -1) {
-            sockets.push_back(sock);
-        } else {
-            cerr << "Failed to bind to port " << ports[i] << endl;
-        }
-    }
-    while (true) {
-        FD_ZERO(&readfds);
-        int maxfd = -1;
-        for (std::vector<int>::iterator it = sockets.begin(); it != sockets.end(); ++it) {
-            int sock = *it;
-            FD_SET(sock, &readfds);
-            if (sock > maxfd) {
-                maxfd = sock;
-            }
-        }
-        int activity = select(maxfd + 1, &readfds, NULL, NULL, NULL);
-        if (activity < 0) {
-            perror("select error");
-            continue;
-        }
-        for (std::vector<int>::iterator it = sockets.begin(); it != sockets.end(); ++it) {
-            int sock = *it;
-            if (FD_ISSET(sock, &readfds)) {
-                int client = accept(sock, NULL, NULL);
-                if (client != -1) {
-                    fcntl(client, F_SETFL, O_NONBLOCK);
-					try
-					{requestTreat(client, createPacket(client));}
-					catch(const std::runtime_error& e)
-					{cout << "Wrong host" << endl;}
-                    close(client);
-                } else {
-                    perror("accept error");
-                }
-            }
-        }
-    }
+void Server::execute(int socket) {
+    int client = accept(socket, NULL, NULL);
+    if (client == -1)
+        return ;
+    fcntl(client, F_SETFL, O_NONBLOCK);
+    requestTreat(client, createPacket(client));
+    close(client);
 }
 
+void Server::run(void) {
+	int		sock;
 
+	if ((sock = serverSocket(SOCK_STREAM)) == -1)
+		exit(-1);
+	// print();
+	while (1)
+        execute(sock);
+}
+
+void    Run(Server *server, int max) {
+    int sock[max];
+    for (int i = 0; i < max; i++) {
+        if ((sock[i] = server[i].serverSocket(SOCK_STREAM)) == -1)
+            exit(-1);
+    }
+    while (1) {
+        for (int i = 0; i < max; i++)
+            server[i].execute(sock[i]);
+    }
+}

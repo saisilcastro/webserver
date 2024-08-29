@@ -1,6 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include "Config.h"
 #include "Protocol.h"
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -28,20 +29,13 @@ class Stream;
 typedef struct sockaddr_in SockAddrIn;
 using namespace std;
 
-struct Location
-{
-	string path;
-	//map<name, value>
-	map<string, string> directives;
-    map<string, string> errorPages;
-};
-
 class Server {
 public:
     Server(void);
     Server(char *);
     Server(Server const &);
-    int     serverSocket(int, const string&);
+	Server(string host, string port, string root, map<string, string> error, vector<Location> location);
+    int     serverSocket(int);
     string  createPacket(int);
     void    requestTreat(int, string);
     string  mimeMaker(string);
@@ -82,9 +76,10 @@ public:
     void loadIndexPage(Stream &stream, Location &location);
     void loadErrorPage(Stream &stream, const string &errorCode);
     void loadDirectoryPage(Stream &stream, Location &location);
+	void execute(int socket);
+
 private:
     string     host;
-    string    tmpHost;
     string     port;
     size_t     MaxBodySize;
     int        sock;
@@ -92,7 +87,8 @@ private:
     string     mime;
     Protocol   master;
     bool       transfer;
-	vector<Location> locations;
+	map<string, string>	error;
+	vector<Location> location;
     map<string, string> errorPages;
     vector<string> ports;
 };
@@ -101,5 +97,6 @@ void parser(const char *file, Server& config);
 void printLocations(const Server& config);
 string extractURL(string &path);
 std::string ft_strip(const std::string& s);
+void Run(Server *server, int max);
 
 #endif
