@@ -284,8 +284,6 @@ void Server::loadDirectoryPage(Stream &stream, Location &location) {
     std::remove(tempFile);
 }
 
-
-
 void Server::response(int client, string path, string protocol) {
 	size_t  pos = path.rfind(".");
 	Stream  stream("");
@@ -310,9 +308,15 @@ void Server::response(int client, string path, string protocol) {
 				else if(stat(fullPath.c_str(), &info) == 0)
 				{
 					if(location.data.find("index") != location.data.end())
+					{
+						cout << "Entrou 1 " << endl;
 						loadIndexPage(stream, location);
+					}
 					else
+					{
+						cout << "Entrou 2" << endl;
 						loadDirectoryPage(stream, location);
+					}
 				}
 				else
 				{

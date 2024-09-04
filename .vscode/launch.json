@@ -8,7 +8,7 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/webserver",
-        "args": ["${workspaceFolder}/cgi.conf"],
+        "args": ["${workspaceFolder}/twoServers.conf"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
         "environment": [],

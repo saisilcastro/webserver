@@ -70,7 +70,10 @@ static void extractInfo(string line, ServerInfo & one, Location & local, int bra
 					one.error.insert(make_pair(name, value));
 				}
 				if (keyword[i] == "location ")
+				{
 					local.path = line.substr(0, line.find("{"));
+					local.path = ft_strip(local.path);
+				}
 			}
 		}
 	}	
