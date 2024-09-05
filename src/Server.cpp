@@ -291,13 +291,13 @@ void Server::response(int client, string path, string protocol) {
 	string url = extractURL(path);
     struct stat info;
     Location location = findLocationPath(url);
-
     if(url == "")
         location = findLocationPath("/");
-	
     string fullPath = root + url;
+	int method = master.isMethod();
+	
 	if (transfer) {
-		if (master.isMethod() != DELETE) {
+		if (method != DELETE && method != INVALID_REQUEST) {
 			mimeMaker(path);
 			if (pos == string::npos) {
 				cout << "Path: " << path << endl;
@@ -308,23 +308,18 @@ void Server::response(int client, string path, string protocol) {
 				else if(stat(fullPath.c_str(), &info) == 0)
 				{
 					if(location.data.find("index") != location.data.end())
-					{
-						cout << "Entrou 1 " << endl;
 						loadIndexPage(stream, location);
-					}
 					else
-					{
-						cout << "Entrou 2" << endl;
 						loadDirectoryPage(stream, location);
-					}
 				}
 				else
 				{
 					status = " 404 Not Found";
 					loadErrorPage(stream, "404");
 				}
-			} else {
-				if (master.isMethod() == POST && maxBodySize > master.getFileLen()) {
+			} 
+			else {
+				if (method == POST && maxBodySize > master.getFileLen()) {
 					contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
 					path = "/413.html";
 					status = " 413 Content Too Large";
@@ -353,7 +348,7 @@ void Server::response(int client, string path, string protocol) {
 				stream.loadFile(root + path);
 			}
 		}
-		else {
+		else if (method == DELETE) {
 			struct stat mStat;
 			string file = root + path;
 			if (!access(file.c_str(), F_OK) && !access(file.c_str(), R_OK | W_OK | X_OK)) {
@@ -368,6 +363,11 @@ void Server::response(int client, string path, string protocol) {
 				status = " 403 Forbidden";
 				loadErrorPage(stream, "403");
 			}
+		}
+		else
+		{
+			status = " 405 Method Not Allowed";
+			loadErrorPage(stream, "405");
 		}
 	}
 	else {
