@@ -34,7 +34,7 @@ public:
     Server(void);
     Server(char *);
     Server(Server const &);
-	Server(string host, string port, string root, map<string, string> error, vector<Location> location);
+	Server(string host, string port, string root, map<string, string> error, vector<Location> location, size_t maxBodySize);
     int     serverSocket(int);
     string  createPacket(int);
     void    requestTreat(int, string);
@@ -62,7 +62,6 @@ public:
     string getHost() const;
 
     void addLocation(const Location& location);
-
 	Location findLocationPath(const string& name);
     string findDirectiveName(const string& name);
     string findDirectiveValue(const string& path);
@@ -81,7 +80,7 @@ public:
 private:
     string     host;
     string     port;
-    size_t     MaxBodySize;
+    size_t     maxBodySize;
     int        sock;
     string     root;
     string     mime;

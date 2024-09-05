@@ -8,8 +8,17 @@ int main(int argc, char **argv) {
         vector<ServerInfo> info = config.infoGet();
         Server server[max];
         max = 0;
+		vector<ServerInfo>::iterator it = info.begin();
+		vector<ServerInfo>::iterator ite = info.end();
+
+		if(it == ite)
+			cout << "Igual" << endl;
+		else
+			cout << "Diferente" << endl;
+
         for (vector<ServerInfo>::iterator it = info.begin(); it != info.end(); ++it)
-            server[max++] = Server(it->name, it->port, it->root, it->error, it->location);
+			server[max++] = Server(it->name, it->port, it->root, it->error, it->location, it->maxBodySize);
+
 		config.print();
 		for (size_t i = 0; i < max; i++)
             Run(server, max);

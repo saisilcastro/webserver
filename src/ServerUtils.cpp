@@ -65,7 +65,7 @@ Location Server::findLocationPath(const string& path)
 
 // Orthodox Canonical Form
 
-Server::Server(void) : host("127.0.0.1"), port("8080"), MaxBodySize(-1), sock(-1), root("www"), mime("text/html"), transfer(true) { 
+Server::Server(void) : host("127.0.0.1"), port("8080"), maxBodySize(-1), sock(-1), root("www"), mime("text/html"), transfer(true) { 
 }
 
 Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html"), transfer(true) {
@@ -76,8 +76,8 @@ Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"
     in.close();
 }
 
-Server::Server(string _host, string _port, string _root, map<string, string> _error, vector<Location> _location)
-: host(_host), port(_port), root(_root), error(_error), location(_location){}
+Server::Server(string _host, string _port, string _root, map<string, string> _error, vector<Location> _location, size_t _maxBodySize)
+: host(_host), port(_port), maxBodySize(_maxBodySize), root(_root), error(_error), location(_location){}
 
 Server &Server::operator=(Server const &pointer) {
     if (this != &pointer) {
@@ -87,7 +87,7 @@ Server &Server::operator=(Server const &pointer) {
         root = pointer.root;
         mime = pointer.mime;
 		location = pointer.location;
-        MaxBodySize = pointer.MaxBodySize;
+        maxBodySize = pointer.maxBodySize;
         transfer = pointer.transfer;
     }
     return *this;
@@ -182,7 +182,7 @@ string Server::getHost() const {
     location.push_back(location);
 } */
 
-void Server::setMaxBodySize(const string& size)
+/* void Server::setMaxBodySize(const string& size)
 {
     int bodySizeInBytes = atoi(size.c_str());
 
@@ -199,8 +199,12 @@ void Server::setMaxBodySize(const string& size)
     else if (size.find_first_not_of("0123456789") == string::npos)
         MaxBodySize = bodySizeInBytes;
     else
+	{
+
         throw runtime_error("Invalid body size, using default file .conf");
-}
+	}
+
+} */
 
 void Server::addErrorPage(const string& errorCode, const string& path) {
     error[errorCode] = path;
