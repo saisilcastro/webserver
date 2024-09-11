@@ -54,7 +54,6 @@ Location Server::findLocationPath(const string& path)
     vector<Location>::const_iterator end = location.end();
     while(start != end)
     {
-        cout << "|" << start->path << "|" << endl;
         if(start->path == path)
             return *start;
         ++start;

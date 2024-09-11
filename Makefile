@@ -42,7 +42,7 @@ all: $(OBJDIR) $(NAME)
 
 run: all
 	@clear
-	@./$(NAME) file.conf
+	@./$(NAME) twoServers.conf
 
 $(NAME): $(OBJS)
 	$(HIDE)$(CC) $(CFLAGS) $(OBJS) -o $@

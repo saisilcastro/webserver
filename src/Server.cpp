@@ -54,6 +54,48 @@ int Server::serverSocket(int type) {
     return sock;
 }
 
+vector<string> split(string str, string sep) {
+	vector<string> result;
+	size_t pos = 0;
+	size_t found;
+
+	while ((found = str.find(sep, pos)) != string::npos) {
+		result.push_back(str.substr(pos, found - pos));
+		pos = found + sep.length();
+	}
+	result.push_back(str.substr(pos));
+	cout << "Result:" << endl;
+	for (size_t i = 0; i < result.size(); i++)
+		cout << result[i] << endl;
+	return result;
+}
+
+void Server::checkAcceptedMethod(Protocol &master) {
+    static vector<string> methods;
+    Location local = findLocationPath(master.getPath());
+
+    methods = split(local.data["accepted_methods"], " ");
+    if (methods.empty() || methods[0].empty()) {
+        methods.clear();
+        methods.push_back("GET");
+        methods.push_back("POST");
+        methods.push_back("DELETE");
+    }
+
+    string methodStr;
+    switch (master.isMethod()) {
+        case GET:    methodStr = "GET";    break;
+        case POST:   methodStr = "POST";   break;
+        case DELETE: methodStr = "DELETE"; break;
+        default:     methodStr = "INVALID"; break;
+    }
+
+    if (find(methods.begin(), methods.end(), methodStr) == methods.end()) {
+        master.setMethod("INVALID");
+    }
+}
+
+
 
 
 string  Server::createPacket(int client) {
@@ -71,7 +113,6 @@ string  Server::createPacket(int client) {
 
 	master.reset();
 	transfer = false;
-	cout << "max body size: " << maxBodySize << endl;
 	while (creating) {
 		FD_ZERO(&read_fd);
 		FD_SET(client, &read_fd);
@@ -99,6 +140,7 @@ string  Server::createPacket(int client) {
 					currentSize += piece;
 					if (packetCreated == false && !out.is_open()) {
 						master.extract(buffer);
+						checkAcceptedMethod(master);
 						packetCreated = true;
 						if (master.getFileLen() && master.getFileLen() < maxBodySize) {
 							path = "./" + root + "/upload/" + master.getFileName();
@@ -297,10 +339,10 @@ void Server::response(int client, string path, string protocol) {
 	int method = master.isMethod();
 	
 	if (transfer) {
+		//função pra get
 		if (method != DELETE && method != INVALID_REQUEST) {
 			mimeMaker(path);
 			if (pos == string::npos) {
-				cout << "Path: " << path << endl;
 				if (maxBodySize < master.getFileLen() && master.getFileLen() > 0) {
 					loadErrorPage(stream, "413");
 					status = " 413 Content Too Large";
@@ -317,7 +359,8 @@ void Server::response(int client, string path, string protocol) {
 					status = " 404 Not Found";
 					loadErrorPage(stream, "404");
 				}
-			} 
+			}
+			// função pra post
 			else {
 				if (method == POST && maxBodySize > master.getFileLen()) {
 					contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
@@ -348,6 +391,7 @@ void Server::response(int client, string path, string protocol) {
 				stream.loadFile(root + path);
 			}
 		}
+		// função pra delete
 		else if (method == DELETE) {
 			struct stat mStat;
 			string file = root + path;
@@ -364,6 +408,7 @@ void Server::response(int client, string path, string protocol) {
 				loadErrorPage(stream, "403");
 			}
 		}
+		// função pra erros
 		else
 		{
 			status = " 405 Method Not Allowed";
@@ -379,14 +424,15 @@ void Server::response(int client, string path, string protocol) {
 
 void    Server::requestTreat(int client, string data) {
 	(void)data;
-	if (master.isMethod() == GET)
+	response(client, master.getPath(), master.getType());
+	/* if (master.isMethod() == GET)
 		response(client, master.getPath(), master.getType());
 	else if (master.isMethod() == POST) {
 		response(client, master.getPath(), master.getType());
 	}
 	else if (master.isMethod() == DELETE) {
 		response(client, master.getPath(), master.getType());
-	}
+	} */
 }
 
 void Server::execute(int socket) {

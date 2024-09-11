@@ -76,6 +76,7 @@ public:
     void loadErrorPage(Stream &stream, const string &errorCode);
     void loadDirectoryPage(Stream &stream, Location &location);
 	void execute(int socket);
+	void checkAcceptedMethod(Protocol &master);
 
 private:
     string     host;
