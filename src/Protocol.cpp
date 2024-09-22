@@ -30,12 +30,12 @@ string inside(string text, string sub, string stop) {
 void    Protocol::extract(char *data){
     istringstream parse(data);
     size_t  pos;
- 
+
     parse >> method >> path >> type;
-    if ((pos = parse.str().find("\r\n\r\n")) != string::npos)
+   	if ((pos = parse.str().find("\r\n\r\n")) != string::npos)
         header = parse.str().substr(pos + 4).find("\r\n\r\n") + pos + 8;
     connection = inside(parse.str(), "Connection: ", "\n");
-    boundary = inside(parse.str(), "boundary=", "\n");
+    boundary = inside(parse.str(), "boundary=", "\r\n");
     file = inside(parse.str(), "filename=\"","\"");
     length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
 }
@@ -44,10 +44,14 @@ void    Protocol::setMethod(string value) {
     method = value;
 }
 
-bool    Protocol::isMethod(string value) {
-    if (method == value)
-        return true;
-    return false;
+method_e    Protocol::isMethod(void) {
+    if (method == "GET")
+        return GET;
+    if (method == "POST")
+        return POST;
+    if (method == "DELETE")
+        return DELETE;
+    return INVALID_REQUEST;
 }
 
 string  Protocol::getPath(void) {
