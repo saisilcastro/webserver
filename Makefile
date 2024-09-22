@@ -18,7 +18,7 @@ endif
 #------------------------------------------------------------------------------#
 
 CC         := c++
-CFLAGS     := -std=c++98 -ggdb -Wall -Wextra -Werror
+CFLAGS     := -std=c++98 -g3 -Wall -Wextra -Werror
 DEBUG_FLAGS := -DDEBUG
 RM         := rm -rf
 INCLUDE    := -Iinclude
@@ -60,4 +60,4 @@ fclean: clean
 re: fclean all
 
 gdb:
-	gnome-terminal --maximize -- bash -c "sleep 0.3 && gdb --tui --args ./$(NAME)"
+	gnome-terminal --maximize -- bash -c "sleep 0.3 && gdb --tui --args ./$(NAME) twoServers.conf"

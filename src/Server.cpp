@@ -2,7 +2,7 @@
 #include "Server.h"
 #define MAX_CLIENT 65535
 
-int Server::serverSocket(int type, const std::string& port) {
+int Server::serverSocket(int type) {
     struct addrinfo hints;
     struct addrinfo *result;
     struct addrinfo *cur;
@@ -54,104 +54,165 @@ int Server::serverSocket(int type, const std::string& port) {
     return sock;
 }
 
+vector<string> split(string str, string sep) {
+	vector<string> result;
+	size_t pos = 0;
+	size_t found;
 
-
-string  Server::createPacket(int client) {
-	fd_set          read_fd;
-	struct timeval  timeout;
-	bool            packetCreated = false;
-	bool            creating = true;
-	char            buffer[65535];
-	size_t          currentSize = 0;
-	size_t          writtenByte = 0;
-	size_t          offset = 0;
-	int             piece;
-	string			path("");
-	ofstream        out; 
-
-	master.reset();
-	transfer = false;
-	while (creating) {
-		FD_ZERO(&read_fd);
-		FD_SET(client, &read_fd);
-
-		if (!packetCreated || MaxBodySize < master.getFileLen()) {
-			timeout.tv_sec = 10;
-			timeout.tv_usec = 0;
-		}
-		else {
-			timeout.tv_sec = 0;
-			timeout.tv_usec = 100000;
-		}
-		int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
-		if (receiving <= 0) {
-			creating = false;
-			transfer = false;
-			cout << "not receiving\n";
-		}
-		else {
-			if (FD_ISSET(client, &read_fd)) {
-				piece = recv(client, buffer, 65535, 0);
-
-				if (piece > 0) {
-					currentSize += piece;
-					if (packetCreated == false && !out.is_open()) {
-						master.extract(buffer);
-						if(this->host != "127.0.0.1" && master.getHost() != this->host)
-						{throw std::runtime_error("Host not found");}
-						
-						packetCreated = true;
-						if (master.getFileLen() && master.getFileLen() < MaxBodySize) {
-							path = "./" + root + "/upload/" + master.getFileName();
-							if (master.isMethod() == POST) {
-								struct stat mStat;
-								if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
-									remove(path.c_str());
-								}
-								out.open(path.c_str(), ios::out | ios::binary);
-							}
-							if (!out.is_open())
-								continue ;
-							if (master.getFileLen() < MaxBodySize)
-								offset = (size_t)master.getHeaderLen();
-						}
-					}
-					size_t  dataLen = piece - offset;
-					size_t  remainingLen = size_t(master.getFileLen()) - writtenByte;
-
-					if (remainingLen < dataLen)
-						dataLen = remainingLen;
-					if (dataLen > 0) {
-						char *sub = strstr(buffer + offset, master.getBoundary().c_str());
-						if (sub)
-							dataLen -= master.getBoundary().length() + 6;
-						if (master.getFileLen() < MaxBodySize)
-							out.write(buffer + offset, dataLen);
-						writtenByte += dataLen;
-					}
-					if (master.isMethod() == POST)
-						cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
-					if(writtenByte >= master.getFileLen()) {
-						cout << "transfer done\n";
-						transfer = true;
-						break;
-					}
-					offset = 0;
-				}
-				else if (writtenByte < master.getFileLen()) {
-					transfer = false;
-					break ;
-				}
-			}
-		}
+	while ((found = str.find(sep, pos)) != string::npos) {
+		result.push_back(str.substr(pos, found - pos));
+		pos = found + sep.length();
 	}
-	out.close();
-	if (!transfer) {
-		remove(path.c_str());
-		cout << "could not transfer " << path << endl;
-	}
-	return "";
+	result.push_back(str.substr(pos));
+  if (result.size() && !result[0].empty()) {
+    cout << "Result:" << endl;
+    for (size_t i = 0; i < result.size(); i++)
+      cout << "[" << result[i] << "]";
+    cout << endl;
+  }
+	return result;
 }
+
+void Server::checkAcceptedMethod(Protocol &master) {
+    static vector<string> methods;
+    Location local = findLocationPath(master.getPath());
+
+    methods = split(local.data["accepted_methods"], " ");
+    if (methods.empty() || methods[0].empty()) {
+        methods.clear();
+        methods.push_back("GET");
+        methods.push_back("POST");
+        methods.push_back("DELETE");
+    }
+
+    string methodStr;
+    switch (master.isMethod()) {
+        case GET:    methodStr = "GET";    break;
+        case POST:   methodStr = "POST";   break;
+        case DELETE: methodStr = "DELETE"; break;
+        default:     methodStr = "INVALID"; break;
+    }
+
+    if (find(methods.begin(), methods.end(), methodStr) == methods.end()) {
+        master.setMethod("INVALID");
+    }
+}
+
+
+
+
+string Server::createPacket(int client) {
+    fd_set          read_fd;
+    struct timeval  timeout;
+    bool            packetCreated = false;
+    bool            creating = true;
+    char            buffer[65535];
+    size_t          currentSize = 0;
+    size_t          writtenByte = 0;
+    size_t          dataLen;
+    size_t          offset = 0;
+    int             piece;
+    string          path("");
+    ofstream        out; 
+
+    master.reset();
+    transfer = false;
+    
+    while (creating) {
+        FD_ZERO(&read_fd);
+        FD_SET(client, &read_fd);
+
+        timeout.tv_sec = 2;
+        timeout.tv_usec = 0;
+
+        int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
+        if (receiving < 0) {
+            creating = false;
+            transfer = false;
+            cout << "Error on select\n";
+        }
+        else if (receiving == 0) {
+            transfer = true;
+            break;
+        }
+        else {
+            if (FD_ISSET(client, &read_fd)) {
+                while (true) {
+                    piece = recv(client, buffer, 65535, 0);
+
+                    if (piece > 0) {
+                        currentSize += piece;
+                        if (!packetCreated && !out.is_open()) {
+                            master.extract(buffer);
+                            checkAcceptedMethod(master);
+                            packetCreated = true;
+
+                            if (master.getFileLen() && master.getFileLen() < maxBodySize) {
+                                path = "upload/" + master.getFileName();
+                                if (master.isMethod() == POST) {
+                                    struct stat mStat;
+                                    if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
+                                        remove(path.c_str());
+                                    }
+                                    out.open(path.c_str(), ios::out | ios::binary);
+                                }
+                                if (!out.is_open())
+                                    continue;
+                                offset = (size_t)master.getHeaderLen();
+                            }
+                        }
+
+                        dataLen = piece - offset;
+                        size_t remainingLen = size_t(master.getFileLen()) - writtenByte;
+
+                        if (remainingLen < dataLen)
+                            dataLen = remainingLen;
+                        if (dataLen > 0) {
+                            char *sub = strstr(buffer + offset, master.getBoundary().c_str());
+                            if (sub)
+                                dataLen -= master.getBoundary().length() + 6;
+                            if (master.getFileLen() < maxBodySize)
+                                out.write(buffer + offset, dataLen);
+                            if (writtenByte + dataLen <= master.getFileLen())
+                              writtenByte += dataLen;
+                        }
+
+                        if (master.isMethod() == POST)
+                            cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
+                        if (writtenByte >= master.getFileLen()) {
+                            cout << "transfer done\n";
+                            transfer = true;
+                            break;
+                        }
+                        offset = 0;
+                    }
+                    else if (piece == 0 || writtenByte >= master.getFileLen()) {
+                        cout << "Received entire file\n";
+                        creating = false;
+                        break;
+                    }
+                    else {
+                        writtenByte += dataLen;
+                        cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
+                        transfer = false;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    out.close();
+    if (!transfer) {
+        remove(path.c_str());
+        cout << "could not transfer " << path << endl;
+    }
+    return "";
+}
+
+
+
+
 
 string  Server::mimeMaker(string path) {
 	size_t  pos;
@@ -229,12 +290,12 @@ void Server::loadErrorPage(Stream &stream, const string &errorCode) {
 }
 
 void Server::loadIndexPage(Stream &stream, Location &location) {
-    string index = location.directives["index"];
-	string tmpRoot = location.directives["root"];
+    string index = location.data["index"];
+	string tmpRoot = location.data["root"];
 
 	if(index.empty())
 	{
-		index = findLocationPath("/ ").directives["index"];
+		index = findLocationPath("/ ").data["index"];
 		if(index.empty())
 			index = "index.html";
 	}
@@ -282,8 +343,6 @@ void Server::loadDirectoryPage(Stream &stream, Location &location) {
     std::remove(tempFile);
 }
 
-
-
 void Server::response(int client, string path, string protocol) {
 	size_t  pos = path.rfind(".");
 	Stream  stream("");
@@ -291,23 +350,23 @@ void Server::response(int client, string path, string protocol) {
 	string url = extractURL(path);
     struct stat info;
     Location location = findLocationPath(url);
-
     if(url == "")
-        location.path = "index.html";
-	
+        location = findLocationPath("/");
     string fullPath = root + url;
+	int method = master.isMethod();
+	
 	if (transfer) {
-		if (master.isMethod() != DELETE) {
+		//função pra get
+		if (method != DELETE && method != INVALID_REQUEST) {
 			mimeMaker(path);
 			if (pos == string::npos) {
-				cout << "Path: " << path << endl;
-				if (MaxBodySize < master.getFileLen() && master.getFileLen() > 0) {
+				if (maxBodySize < master.getFileLen() && master.getFileLen() > 0) {
 					loadErrorPage(stream, "413");
 					status = " 413 Content Too Large";
 				}
 				else if(stat(fullPath.c_str(), &info) == 0)
 				{
-					if(location.directives.find("index") != location.directives.end())
+					if(location.data.find("index") != location.data.end())
 						loadIndexPage(stream, location);
 					else
 						loadDirectoryPage(stream, location);
@@ -317,8 +376,10 @@ void Server::response(int client, string path, string protocol) {
 					status = " 404 Not Found";
 					loadErrorPage(stream, "404");
 				}
-			} else {
-				if (master.isMethod() == POST && MaxBodySize > master.getFileLen()) {
+			}
+			// função pra post
+			else {
+				if (method == POST && maxBodySize > master.getFileLen()) {
 					contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
 					path = "/413.html";
 					status = " 413 Content Too Large";
@@ -347,7 +408,8 @@ void Server::response(int client, string path, string protocol) {
 				stream.loadFile(root + path);
 			}
 		}
-		else {
+		// função pra delete
+		else if (method == DELETE) {
 			struct stat mStat;
 			string file = root + path;
 			if (!access(file.c_str(), F_OK) && !access(file.c_str(), R_OK | W_OK | X_OK)) {
@@ -363,6 +425,12 @@ void Server::response(int client, string path, string protocol) {
 				loadErrorPage(stream, "403");
 			}
 		}
+		// função pra erros
+		else
+		{
+			status = " 405 Method Not Allowed";
+			loadErrorPage(stream, "405");
+		}
 	}
 	else {
 		status = " 500 Internal Server Error";
@@ -373,61 +441,44 @@ void Server::response(int client, string path, string protocol) {
 
 void    Server::requestTreat(int client, string data) {
 	(void)data;
-	if (master.isMethod() == GET)
+	response(client, master.getPath(), master.getType());
+	/* if (master.isMethod() == GET)
 		response(client, master.getPath(), master.getType());
 	else if (master.isMethod() == POST) {
 		response(client, master.getPath(), master.getType());
 	}
 	else if (master.isMethod() == DELETE) {
 		response(client, master.getPath(), master.getType());
-	}
+	} */
+}
+
+void Server::execute(int socket) {
+    int client = accept(socket, NULL, NULL);
+    if (client == -1)
+        return ;
+    fcntl(client, F_SETFL, O_NONBLOCK);
+    requestTreat(client, createPacket(client));
+    close(client);
 }
 
 void Server::run(void) {
-	if(ports.empty())
-		ports.push_back("8080");
-    std::vector<int> sockets;
-    fd_set readfds;
-    for (size_t i = 0; i < ports.size(); ++i) {
-        int sock = serverSocket(SOCK_STREAM, ports[i]);
-        if (sock != -1) {
-            sockets.push_back(sock);
-        } else {
-            cerr << "Failed to bind to port " << ports[i] << endl;
-        }
-    }
-    while (true) {
-        FD_ZERO(&readfds);
-        int maxfd = -1;
-        for (std::vector<int>::iterator it = sockets.begin(); it != sockets.end(); ++it) {
-            int sock = *it;
-            FD_SET(sock, &readfds);
-            if (sock > maxfd) {
-                maxfd = sock;
-            }
-        }
-        int activity = select(maxfd + 1, &readfds, NULL, NULL, NULL);
-        if (activity < 0) {
-            perror("select error");
-            continue;
-        }
-        for (std::vector<int>::iterator it = sockets.begin(); it != sockets.end(); ++it) {
-            int sock = *it;
-            if (FD_ISSET(sock, &readfds)) {
-                int client = accept(sock, NULL, NULL);
-                if (client != -1) {
-                    fcntl(client, F_SETFL, O_NONBLOCK);
-					try
-					{requestTreat(client, createPacket(client));}
-					catch(const std::runtime_error& e)
-					{cout << "Wrong host" << endl;}
-                    close(client);
-                } else {
-                    perror("accept error");
-                }
-            }
-        }
-    }
+	int		sock;
+
+	if ((sock = serverSocket(SOCK_STREAM)) == -1)
+		exit(-1);
+	// print();
+	while (1)
+        execute(sock);
 }
 
-
+void    Run(Server *server, int max) {
+    int sock[max];
+    for (int i = 0; i < max; i++) {
+        if ((sock[i] = server[i].serverSocket(SOCK_STREAM)) == -1)
+            exit(-1);
+    }
+    while (1) {
+        for (int i = 0; i < max; i++)
+            server[i].execute(sock[i]);
+    }
+}
