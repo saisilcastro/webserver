@@ -22,7 +22,6 @@ int main(int argc, char **argv) {
             for (vector<ServerInfo>::iterator it = info.begin(); it != info.end(); ++it)
                 server[max++] = Server(it->name, it->port, it->root, it->error, it->location, it->maxBodySize);
 
-            config.print();
             for (size_t i = 0; i < max; i++)
                 Run(server, max);
         }

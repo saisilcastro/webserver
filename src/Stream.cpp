@@ -66,7 +66,7 @@ void Stream::loadFile(std::string file) {
 
                 execve("/usr/bin/python3", const_cast<char* const*>(argv), const_cast<char* const*>(envp));
             }
-            perror("execve failed");
+            perror("Script execution failed! Make sure that you have PHP or Python installed.");
             exit(EXIT_FAILURE);
         } else { // parent process
             close(fd[1]);
@@ -81,7 +81,7 @@ void Stream::loadFile(std::string file) {
             int status;
             waitpid(pid, &status, 0);
             if (status != 0)
-                throw std::runtime_error("Script execution failed!");
+                cout << "Script execution failed!" << endl;
 
             size = result.size();
             buffer = new char[size];
