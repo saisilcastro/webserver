@@ -18,7 +18,7 @@ endif
 #------------------------------------------------------------------------------#
 
 CC         := c++
-CFLAGS     := -std=c++98 -g3 -Wall -Wextra -Werror -fno-limit-debug-info
+CFLAGS     := -std=c++98 -g3 -Wall -Wextra -Werror
 DEBUG_FLAGS := -DDEBUG
 RM         := rm -rf
 INCLUDE    := -Iinclude

@@ -95,9 +95,6 @@ void Server::checkAcceptedMethod(Protocol &master) {
     }
 }
 
-
-
-
 string Server::createPacket(int client) {
     fd_set          read_fd;
     struct timeval  timeout;
@@ -106,6 +103,7 @@ string Server::createPacket(int client) {
     char            buffer[65535];
     size_t          currentSize = 0;
     size_t          writtenByte = 0;
+    size_t          dataLen;
     size_t          offset = 0;
     int             piece;
     string          path("");
@@ -128,7 +126,6 @@ string Server::createPacket(int client) {
             cout << "Error on select\n";
         }
         else if (receiving == 0) {
-            cout << "Transfer done" << endl;
             transfer = true;
             break;
         }
@@ -159,7 +156,7 @@ string Server::createPacket(int client) {
                             }
                         }
 
-                        size_t dataLen = piece - offset;
+                        dataLen = piece - offset;
                         size_t remainingLen = size_t(master.getFileLen()) - writtenByte;
 
                         if (remainingLen < dataLen)
@@ -170,7 +167,8 @@ string Server::createPacket(int client) {
                                 dataLen -= master.getBoundary().length() + 6;
                             if (master.getFileLen() < maxBodySize)
                                 out.write(buffer + offset, dataLen);
-                            writtenByte += dataLen;
+                            if (writtenByte + dataLen <= master.getFileLen())
+                              writtenByte += dataLen;
                         }
 
                         if (master.isMethod() == POST)
@@ -184,9 +182,12 @@ string Server::createPacket(int client) {
                     }
                     else if (piece == 0 || writtenByte >= master.getFileLen()) {
                         cout << "Received entire file\n";
+                        creating = false;
                         break;
                     }
                     else {
+                        writtenByte += dataLen;
+                        cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
                         transfer = false;
                         break;
                     }
@@ -202,10 +203,6 @@ string Server::createPacket(int client) {
     }
     return "";
 }
-
-
-
-
 
 string  Server::mimeMaker(string path) {
 	size_t  pos;
