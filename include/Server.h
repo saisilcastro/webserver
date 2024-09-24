@@ -1,6 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include <csignal>
 #include "Config.h"
 #include "Protocol.h"
 #include <sys/socket.h>
@@ -98,5 +99,6 @@ void printLocations(const Server& config);
 string extractURL(string &path);
 std::string ft_strip(const std::string& s);
 void Run(Server *server, int max);
+void handleSignal(int signal);
 
 #endif
