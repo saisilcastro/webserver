@@ -121,8 +121,9 @@ string Server::createPacket(int client) {
 			timeout.tv_usec = 0;
 		}
 		else {
-			timeout.tv_sec = 0;
-			timeout.tv_usec = 100000;
+            
+            timeout.tv_sec = 0;
+			timeout.tv_usec = master.getFileLen();
 		}
         int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
         if (receiving < 0) {
