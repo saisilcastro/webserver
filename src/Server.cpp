@@ -121,7 +121,6 @@ string Server::createPacket(int client) {
 			timeout.tv_usec = 0;
 		}
 		else {
-            
             timeout.tv_sec = 0;
 			timeout.tv_usec = master.getFileLen();
 		}
