@@ -36,4 +36,6 @@ class Config{
         ~Config(void);
 };
 
+std::string ft_strip(const std::string& s);
+
 #endif
