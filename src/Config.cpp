@@ -1,4 +1,4 @@
-#include <Config.h>
+#include "Config.h"
 
 Config::Config(void) {}
 
@@ -21,7 +21,8 @@ size_t bodySize(string size) {
         return (size_t)iSize * 1024;
     else if (size.find_first_not_of("0123456789") == string::npos)
         return (size_t)iSize;
-	throw std::runtime_error("Invalid body size, using default file .conf");
+	else
+		throw std::runtime_error("Invalid body size, using default file .conf");
 }
 
 static void extractInfo(string line, ServerInfo & one, Location & local, int bracket) {
@@ -69,7 +70,10 @@ static void extractInfo(string line, ServerInfo & one, Location & local, int bra
 					one.error.insert(make_pair(name, value));
 				}
 				if (keyword[i] == "location ")
+				{
 					local.path = line.substr(0, line.find("{"));
+					local.path = ft_strip(local.path);
+				}
 			}
 		}
 	}	
