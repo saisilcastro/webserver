@@ -64,9 +64,6 @@ vector<string> split(string str, string sep) {
 		pos = found + sep.length();
 	}
 	result.push_back(str.substr(pos));
-	cout << "Result:" << endl;
-	for (size_t i = 0; i < result.size(); i++)
-		cout << result[i] << endl;
 	return result;
 }
 
@@ -294,6 +291,7 @@ void Server::loadIndexPage(Stream &stream, Location &location) {
 
 	if(tmpRoot.empty())
 		tmpRoot = root;
+    cout << "|" << root << "|" << endl;
     stream.loadFile(tmpRoot + location.path + '/' + index);
 }
 
@@ -345,10 +343,11 @@ void Server::response(int client, string path, string protocol) {
     if(url == "")
         location = findLocationPath("/");
     string fullPath = root + url;
+
+    cout << "fullPath: " << fullPath << endl;
 	int method = master.isMethod();
 	
 	if (transfer) {
-		//função pra get
 		if (method != DELETE && method != INVALID_REQUEST) {
 			mimeMaker(path);
 			if (pos == string::npos) {
@@ -369,7 +368,6 @@ void Server::response(int client, string path, string protocol) {
 					loadErrorPage(stream, "404");
 				}
 			}
-			// função pra post
 			else {
 				if (method == POST && maxBodySize > master.getFileLen()) {
 					contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());

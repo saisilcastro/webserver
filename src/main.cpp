@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
         }
         else {
             Server server;
+            server.run();
         }
     }
     catch(string &e)

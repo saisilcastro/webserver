@@ -65,6 +65,10 @@ Location Server::findLocationPath(const string& path)
 // Orthodox Canonical Form
 
 Server::Server(void) : host("127.0.0.1"), port("8080"), maxBodySize(-1), sock(-1), root("www"), mime("text/html"), transfer(true) { 
+    this->location.push_back(Location());
+    this->location[0].path = "/";
+    this->location[0].data["root"] = "www/";
+    this->location[0].data["index"] = "index.html";
 }
 
 Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html"), transfer(true) {
