@@ -95,6 +95,8 @@ Config::Config(char *file) {
 		if (line.find("}") != string::npos) {
 			bracket--;
 			if (bracket == 0) {
+				if(one.root.empty() || one.port.empty())
+					throw std::runtime_error("Invalid server configuration, using default file .conf");
 				info.push_back(one);
 				one.name.clear();
                 one.root.clear();

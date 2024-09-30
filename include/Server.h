@@ -78,7 +78,8 @@ public:
     void loadDirectoryPage(Stream &stream, Location &location);
 	void execute(int socket);
 	void checkAcceptedMethod(Protocol &master);
-
+    void defineFullPath(string &fullPath, Location &location, string url);
+    void defineLocationPath(Location &location, string path);
 private:
     string     host;
     string     port;

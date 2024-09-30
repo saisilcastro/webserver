@@ -4,14 +4,13 @@
 void handleSignal(int signal) {
     if (signal == SIGINT) {
         std::cout << "SIGINT signal received. Quitting..." << std::endl;
-        throw (string("Quit"));
+        exit(0);
     }
 }
 
 int main(int argc, char **argv) {
     std::signal(SIGINT, handleSignal);  // Ctrl+C Signal
-    try
-        {
+    try{
         if (argc > 1) {
             Config config(argv[1]);
             size_t  max = config.infoGet().size();
@@ -30,10 +29,10 @@ int main(int argc, char **argv) {
             server.run();
         }
     }
-    catch(string &e)
-    {
-        cout << e << endl;
-        return(1);
+    catch(const std::exception &e) {
+        std::cerr << e.what() << std::endl;
+        Server server;
+        server.run();
     }
     return (0);
 }

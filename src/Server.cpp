@@ -279,20 +279,17 @@ void Server::loadErrorPage(Stream &stream, const string &errorCode) {
 }
 
 void Server::loadIndexPage(Stream &stream, Location &location) {
+    cout << "loadIndexPage" << endl;
     string index = location.data["index"];
 	string tmpRoot = location.data["root"];
 
 	if(index.empty())
-	{
-		index = findLocationPath("/ ").data["index"];
-		if(index.empty())
-			index = "index.html";
-	}
+		index = findLocationPath("/").data["index"];
 
 	if(tmpRoot.empty())
-		tmpRoot = root;
-    cout << "|" << root << "|" << endl;
-    stream.loadFile(tmpRoot + location.path + '/' + index);
+        stream.loadFile(root + location.path + '/' + index);
+    else
+        stream.loadFile(tmpRoot + '/' + index);
 }
 
 void Server::loadDirectoryPage(Stream &stream, Location &location) {
@@ -331,23 +328,39 @@ void Server::loadDirectoryPage(Stream &stream, Location &location) {
     stream.loadFile(tempFile);
     close(fd);
     std::remove(tempFile);
+
 }
 
-void Server::response(int client, string path, string protocol) {
-	size_t  pos = path.rfind(".");
-	Stream  stream("");
-	string  status = " 200 OK";
-	string url = extractURL(path);
-    struct stat info;
-    Location location = findLocationPath(url);
-    if(url == "")
-        location = findLocationPath("/");
-    string fullPath = root + url;
+void Server::defineFullPath(string &fullPath, Location &location, string url) {
+    if(location.data.find("root") != location.data.end())
+        fullPath = location.data["root"];
+    else
+        fullPath = root + url;
 
-    cout << "fullPath: " << fullPath << endl;
+    cout << "Full path: " << fullPath << endl;
+}
+
+void Server::defineLocationPath(Location &location, string path) {
+    string url = extractURL(path);
+    if (url == "")
+        location = findLocationPath("/");
+    else
+        location = findLocationPath(url);
+}
+
+
+void Server::response(int client, string path, string protocol) {
 	int method = master.isMethod();
-	
-	if (transfer) {
+    struct stat info;
+	string  status = " 200 OK";
+    size_t  pos = path.rfind(".");
+	Stream  stream("");
+    Location location;
+    string fullPath;
+
+    defineLocationPath(location, path);
+    defineFullPath(fullPath, location, extractURL(path));
+    if (transfer) {
 		if (method != DELETE && method != INVALID_REQUEST) {
 			mimeMaker(path);
 			if (pos == string::npos) {
@@ -362,8 +375,7 @@ void Server::response(int client, string path, string protocol) {
 					else
 						loadDirectoryPage(stream, location);
 				}
-				else
-				{
+				else{
 					status = " 404 Not Found";
 					loadErrorPage(stream, "404");
 				}
@@ -395,10 +407,9 @@ void Server::response(int client, string path, string protocol) {
 						}
 					}
 				}
-				stream.loadFile(root + path);
+                stream.loadFile(root + path);
 			}
 		}
-		// função pra delete
 		else if (method == DELETE) {
 			struct stat mStat;
 			string file = root + path;
@@ -415,7 +426,6 @@ void Server::response(int client, string path, string protocol) {
 				loadErrorPage(stream, "403");
 			}
 		}
-		// função pra erros
 		else
 		{
 			status = " 405 Method Not Allowed";
