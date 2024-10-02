@@ -28,6 +28,11 @@ int		Stream::streamSize(void) {
 }
 
 void Stream::loadFile(std::string file) {
+    if(access(file.c_str(), F_OK) == -1)
+    {
+        loadFile("default/defaultErrorPages/404.html");
+        return;
+    }
     if (file.find(".php") == std::string::npos && file.find(".py") == std::string::npos) {
         std::ifstream in(file.c_str(), std::ios::binary | std::ios::ate);
 

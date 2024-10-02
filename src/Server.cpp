@@ -286,10 +286,11 @@ void Server::loadIndexPage(Stream &stream, Location &location) {
 	if(index.empty())
 		index = findLocationPath("/").data["index"];
 
-	if(tmpRoot.empty())
+    if(tmpRoot.empty())
         stream.loadFile(root + location.path + '/' + index);
     else
         stream.loadFile(tmpRoot + '/' + index);
+    
 }
 
 void Server::loadDirectoryPage(Stream &stream, Location &location) {
@@ -336,18 +337,26 @@ void Server::defineFullPath(string &fullPath, Location &location, string url) {
         fullPath = location.data["root"];
     else
         fullPath = root + url;
-
-    cout << "Full path: " << fullPath << endl;
 }
 
-void Server::defineLocationPath(Location &location, string path) {
+void Server::defineLocationPath(Location &location, string path, string &LocationRoot) {
     string url = extractURL(path);
     if (url == "")
         location = findLocationPath("/");
     else
         location = findLocationPath(url);
-}
 
+    if(location.data.find("root") != location.data.end())
+        LocationRoot = location.data["root"];
+    else if(!location.path.empty() && location.data.find("root") == location.data.end())
+        LocationRoot = "";
+
+    if (location.path.empty() && location.data.empty()) {
+        location.path = "default";
+        location.data["root"] = "default";
+        location.data["index"] = "defaultPage.html";
+    }
+}
 
 void Server::response(int client, string path, string protocol) {
 	int method = master.isMethod();
@@ -357,8 +366,9 @@ void Server::response(int client, string path, string protocol) {
 	Stream  stream("");
     Location location;
     string fullPath;
+    static string LocationRoot;
 
-    defineLocationPath(location, path);
+    defineLocationPath(location, path, LocationRoot);
     defineFullPath(fullPath, location, extractURL(path));
     if (transfer) {
 		if (method != DELETE && method != INVALID_REQUEST) {
@@ -407,7 +417,10 @@ void Server::response(int client, string path, string protocol) {
 						}
 					}
 				}
-                stream.loadFile(root + path);
+                if(LocationRoot != "")
+                    stream.loadFile(LocationRoot + path);
+                else
+                    stream.loadFile(root + path);
 			}
 		}
 		else if (method == DELETE) {

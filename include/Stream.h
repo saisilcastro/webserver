@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <sys/wait.h>
+#include "Server.h"
+
 
 using namespace std;
 
