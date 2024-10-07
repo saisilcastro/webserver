@@ -479,7 +479,6 @@ void Server::run(void) {
 
 	if ((sock = serverSocket(SOCK_STREAM)) == -1)
 		exit(-1);
-	// print();
 	while (1)
         execute(sock);
 }
