@@ -25,7 +25,7 @@ INCLUDE    := -Iinclude
 
 NAME       := webserver
 SRCDIR     := src
-OBJDIR     := objs
+OBJDIR     := obj
 SRCS       := $(wildcard $(SRCDIR)/*.cpp)
 OBJS       := $(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 INC        := $(wildcard include/*.hpp include/*.h)
