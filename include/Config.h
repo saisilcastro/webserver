@@ -32,6 +32,7 @@ class Config{
         Config(char *file);
         vector<ServerInfo> infoGet(void);
         string getName(int);
+        bool isPortRepeated(void);
         void print(void);
         ~Config(void);
 };

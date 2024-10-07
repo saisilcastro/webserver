@@ -64,9 +64,6 @@ vector<string> split(string str, string sep) {
 		pos = found + sep.length();
 	}
 	result.push_back(str.substr(pos));
-	cout << "Result:" << endl;
-	for (size_t i = 0; i < result.size(); i++)
-		cout << result[i] << endl;
 	return result;
 }
 
@@ -121,8 +118,8 @@ string Server::createPacket(int client) {
 			timeout.tv_usec = 0;
 		}
 		else {
-			timeout.tv_sec = 0;
-			timeout.tv_usec = 100000;
+            timeout.tv_sec = 0;
+			timeout.tv_usec = master.getFileLen() / 1000;
 		}
         int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
         if (receiving < 0) {
@@ -147,9 +144,12 @@ string Server::createPacket(int client) {
                             packetCreated = true;
 
                             if (master.getFileLen() && master.getFileLen() <= maxBodySize) {
-                                path = "upload/" + master.getFileName();
+                                string dir = root + "/update/";
+                                struct stat mStat;
+                                if (stat(dir.c_str(), &mStat))
+                                    mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                                path = dir + master.getFileName();
                                 if (master.isMethod() == POST) {
-                                    struct stat mStat;
                                     if (!stat(path.c_str(), &mStat) && mStat.st_size > 0) {
                                         remove(path.c_str());
                                     }
@@ -282,19 +282,18 @@ void Server::loadErrorPage(Stream &stream, const string &errorCode) {
 }
 
 void Server::loadIndexPage(Stream &stream, Location &location) {
+    cout << "loadIndexPage" << endl;
     string index = location.data["index"];
 	string tmpRoot = location.data["root"];
 
 	if(index.empty())
-	{
-		index = findLocationPath("/ ").data["index"];
-		if(index.empty())
-			index = "index.html";
-	}
+		index = findLocationPath("/").data["index"];
 
-	if(tmpRoot.empty())
-		tmpRoot = root;
-    stream.loadFile(tmpRoot + location.path + '/' + index);
+    if(tmpRoot.empty())
+        stream.loadFile(root + location.path + '/' + index);
+    else
+        stream.loadFile(tmpRoot + '/' + index);
+    
 }
 
 void Server::loadDirectoryPage(Stream &stream, Location &location) {
@@ -333,22 +332,48 @@ void Server::loadDirectoryPage(Stream &stream, Location &location) {
     stream.loadFile(tempFile);
     close(fd);
     std::remove(tempFile);
+
+}
+
+void Server::defineFullPath(string &fullPath, Location &location, string url) {
+    if(location.data.find("root") != location.data.end())
+        fullPath = location.data["root"];
+    else
+        fullPath = root + url;
+}
+
+void Server::defineLocationPath(Location &location, string path, string &LocationRoot) {
+    string url = extractURL(path);
+    if (url == "")
+        location = findLocationPath("/");
+    else
+        location = findLocationPath(url);
+
+    if(location.data.find("root") != location.data.end())
+        LocationRoot = location.data["root"];
+    else if(!location.path.empty() && location.data.find("root") == location.data.end())
+        LocationRoot = "";
+
+    if (location.path.empty() && location.data.empty()) {
+        location.path = "default";
+        location.data["root"] = "default";
+        location.data["index"] = "defaultPage.html";
+    }
 }
 
 void Server::response(int client, string path, string protocol) {
-	size_t  pos = path.rfind(".");
-	Stream  stream("");
-	string  status = " 200 OK";
-	string url = extractURL(path);
-    struct stat info;
-    Location location = findLocationPath(url);
-    if(url == "")
-        location = findLocationPath("/");
-    string fullPath = root + url;
 	int method = master.isMethod();
-	
-	if (transfer) {
-		//função pra get
+    struct stat info;
+	string  status = " 200 OK";
+    size_t  pos = path.rfind(".");
+	Stream  stream("");
+    Location location;
+    string fullPath;
+    static string LocationRoot;
+
+    defineLocationPath(location, path, LocationRoot);
+    defineFullPath(fullPath, location, extractURL(path));
+    if (transfer) {
 		if (method != DELETE && method != INVALID_REQUEST) {
 			mimeMaker(path);
 			if (pos == string::npos) {
@@ -363,13 +388,11 @@ void Server::response(int client, string path, string protocol) {
 					else
 						loadDirectoryPage(stream, location);
 				}
-				else
-				{
+				else{
 					status = " 404 Not Found";
 					loadErrorPage(stream, "404");
 				}
 			}
-			// função pra post
 			else {
 				if (method == POST && maxBodySize > master.getFileLen()) {
 					contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
@@ -397,10 +420,12 @@ void Server::response(int client, string path, string protocol) {
 						}
 					}
 				}
-				stream.loadFile(root + path);
+                if(LocationRoot != "")
+                    stream.loadFile(LocationRoot + path);
+                else
+                    stream.loadFile(root + path);
 			}
 		}
-		// função pra delete
 		else if (method == DELETE) {
 			struct stat mStat;
 			string file = root + path;
@@ -417,7 +442,6 @@ void Server::response(int client, string path, string protocol) {
 				loadErrorPage(stream, "403");
 			}
 		}
-		// função pra erros
 		else
 		{
 			status = " 405 Method Not Allowed";
