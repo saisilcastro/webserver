@@ -29,112 +29,121 @@ int		Stream::streamSize(void) {
 
 void Stream::loadFile(std::string file) {
     if (access(file.c_str(), F_OK) == -1) {
-        loadFile("default/defaultErrorPages/404.html");
+        // loadErrorPage(*this, "404");
+        // contentMaker(_contentMaker);
         return;
     }
-    
+
     if (file.find(".php") == std::string::npos && file.find(".py") == std::string::npos) {
         std::ifstream in(file.c_str(), std::ios::binary | std::ios::ate);
-        
+
         if (!in.is_open() || in.bad() || in.fail()) {
             return;
         }
-        
+
         size = in.tellg();
         in.seekg(0, std::ios::beg);
         buffer = new char[size];
         if (!buffer)
             return;
-        
+
         in.read(reinterpret_cast<char *>(buffer), size);
         in.close();
     } else {
         int fd[2];
-        
+
         if (pipe(fd) == -1)
             throw std::runtime_error("pipe() failed!");
-        
+
         pid_t pid = fork();
         if (pid == -1)
             throw std::runtime_error("fork() failed!");
-        else if (pid == 0) { // child process
+        else if (pid == 0) { // processo filho
             close(fd[0]);
             dup2(fd[1], STDOUT_FILENO);
-            dup2(fd[1], STDERR_FILENO); // Capture stderr as well
+            dup2(fd[1], STDERR_FILENO); // Captura stderr também
             close(fd[1]);
-            
+
             if (file.find(".php") != std::string::npos) {
                 const char* argv[] = {"php", file.c_str(), NULL};
-                const char* envp[] = {NULL}; // Use the current environment
-                
+                const char* envp[] = {NULL}; // Usa o ambiente atual
+
                 execve("/usr/bin/php", const_cast<char* const*>(argv), const_cast<char* const*>(envp));
             } else if (file.find(".py") != std::string::npos) {
                 const char* argv[] = {"python3", file.c_str(), NULL};
-                const char* envp[] = {NULL}; // Use the current environment
-                
+                const char* envp[] = {NULL}; // Usa o ambiente atual
+
                 execve("/usr/bin/python3", const_cast<char* const*>(argv), const_cast<char* const*>(envp));
             }
-            perror("Script execution failed! Make sure that you have PHP or Python installed.");
+            perror("Execução do script falhou! Certifique-se de que você tem PHP ou Python instalado.");
             exit(EXIT_FAILURE);
-        } else { // parent process
+        } else { // processo pai
             close(fd[1]);
             char data[128];
             std::string result;
             ssize_t count;
-            
-            // Timeout control
-            int timeout_seconds = 5; // Define the desired timeout
+
+            // Controle de timeout
+            int timeout_seconds = 5; // Define o timeout desejado
             time_t start_time = time(NULL);
             bool timeout_reached = false;
-            
+
             while (true) {
-                // Check if the child process has finished
+                // Verifica se o processo filho terminou
                 int status;
                 pid_t wait_result = waitpid(pid, &status, WNOHANG);
-                
-                if (wait_result == 0) { // Child process is still running
+
+                if (wait_result == 0) { // O processo filho ainda está em execução
                     if (difftime(time(NULL), start_time) >= timeout_seconds) {
-                        // Timeout reached, kill the child process
+                        // Timeout alcançado, mata o processo filho
                         kill(pid, SIGKILL);
-                        std::cerr << "The script took too long and was terminated." << std::endl;
+                        std::cerr << "O script demorou demais e foi terminado." << std::endl;
                         timeout_reached = true;
                         break;
                     }
                 } else if (wait_result == -1) {
-                    // Error waiting for the process
-                    perror("waitpid failed");
+                    // Erro ao esperar pelo processo
+                    perror("waitpid falhou");
                     break;
-                } else { // The child process has finished
+                } else { // O processo filho terminou
                     if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-                        std::cerr << "Script execution failed!" << std::endl;
+                        std::cerr << "Execução do script falhou!" << std::endl;
                     }
                     break;
                 }
-                
-                // Read data from the pipe
+
+                // Lê dados do pipe
                 count = read(fd[0], data, sizeof(data));
                 if (count > 0) {
                     result.append(data, count);
+                } else if (count == -1) {
+                    perror("Erro ao ler do pipe");
+                    break; // Lidar com erro de leitura
+                } else if (count == 0) {
+                    // EOF alcançado, sai do loop
+                    break;
                 }
             }
-            
-            close(fd[0]); // Close the read end
+
+            close(fd[0]); // Fecha a extremidade de leitura
 
             if (timeout_reached) {
-                loadFile("default/defaultErrorPages/405.html");
+                // loadFile("default/defaultErrorPages/504.html");
+                _contentMaker.printContent();
                 return;
             }
 
-            // After execution, allocate the buffer
+            // Após a execução, aloca o buffer
             size = result.size();
             buffer = new char[size];
             if (!buffer)
-                throw std::runtime_error("Buffer allocation failed!");
+                throw std::runtime_error("Falha na alocação do buffer!");
 
             memcpy(buffer, result.c_str(), size);
         }
     }
 }
+
 
 void	Stream::saveFile(string file) {
     if (file.empty())

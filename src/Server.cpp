@@ -230,6 +230,37 @@ string  Server::mimeMaker(string path) {
 	return mime;
 }
 
+void Server::contentMaker(ContentMaker& contentMaker)
+{
+
+	int client = contentMaker.getClient();
+	string protocol = contentMaker.getProtocol() + contentMaker.getStatus();
+	string connection = contentMaker.getConnection();
+	void *data = contentMaker.getData();
+	size_t len = contentMaker.getLen();
+	time_t  m_time;
+	char    head[65536];
+	m_time = time(NULL);
+
+	int head_len = sprintf(head, "%s\n"
+								   "Date: %s"
+								   "Connection: %s\n"
+								   "Content-Type: %s\n"
+								   "Content-Lenght: %li\n\n",
+								   protocol.c_str(), ctime(&m_time), connection.c_str(), mime.c_str(), len);
+
+	char *content = new char[head_len + len];
+	sprintf(content, "%s", head);
+	cout << "teste 1\n";
+	memcpy(content + head_len, data, len);
+	cout << "teste 2\n";
+	int ok = write(client, content, head_len + len);
+	cout << "saiu\n";
+	if (ok == -1) {
+		cerr << "could not send content\n";
+	}
+}
+
 void  Server::contentMaker(int client, string protocol, string connection, void *data, size_t len) {
 	time_t  m_time;
 	char    head[65536];
@@ -241,9 +272,7 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 								   "Content-Type: %s\n"
 								   "Content-Lenght: %li\n\n",
 								   protocol.c_str(), ctime(&m_time), connection.c_str(), mime.c_str(), len);
-	if (len) {
 
-	}
 	char *content = new char[head_len + len];
 	sprintf(content, "%s", head);
 	memcpy(content + head_len, data, len);
@@ -261,6 +290,7 @@ string getPageDefault(const string &errorCode) {
         errorPages["405"] = "www/defaultPages/405.html";
         errorPages["413"] = "www/defaultPages/413.html";
         errorPages["500"] = "www/defaultPages/500.html";
+		errorPages["504"] = "www/defaultPages/504.html";
     }
     
     map<string, string>::iterator it = errorPages.find(errorCode);
@@ -279,7 +309,6 @@ void Server::loadErrorPage(Stream &stream, const string &errorCode) {
 }
 
 void Server::loadIndexPage(Stream &stream, Location &location) {
-    cout << "loadIndexPage" << endl;
     string index = location.data["index"];
 	string tmpRoot = location.data["root"];
 
@@ -358,6 +387,12 @@ void Server::defineLocationPath(Location &location, string path, string &Locatio
     }
 }
 
+void Server::LoadSpecifiedFile(int client, const string &path, const string &status) {
+	Stream stream("");
+	stream.loadFile(path);
+	contentMaker(client, status, "keep-alive", stream.getStream(), stream.streamSize());
+}
+
 void Server::response(int client, string path, string protocol) {
 	int method = master.isMethod();
     struct stat info;
@@ -380,6 +415,7 @@ void Server::response(int client, string path, string protocol) {
 				}
 				else if(stat(fullPath.c_str(), &info) == 0)
 				{
+					_contentMaker = ContentMaker(client, protocol, "keep-alive", status, stream.getStream(), stream.streamSize());
 					if(location.data.find("index") != location.data.end())
 						loadIndexPage(stream, location);
 					else

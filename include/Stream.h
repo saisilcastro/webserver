@@ -14,7 +14,7 @@
 
 using namespace std;
 
-class Stream {
+class Stream: public Server {
     void	*buffer;
     size_t	size;
 public:

@@ -23,7 +23,7 @@
 #include <algorithm>
 #include <dirent.h>
 #include <sys/types.h>
-
+#include "ContentMaker.h"
 
 class Stream;
 
@@ -80,8 +80,10 @@ public:
 	void checkAcceptedMethod(Protocol &master);
     void defineFullPath(string &fullPath, Location &location, string url);
     void defineLocationPath(Location &location, string path, string &LocationRoot);
+	void LoadSpecifiedFile(int client, const string &path, const string &status);
+	void contentMaker(ContentMaker& contentMaker);
 
-private:
+protected:
     string     host;
     string     port;
     size_t     maxBodySize;
@@ -94,6 +96,7 @@ private:
 	vector<Location> location;
     map<string, string> errorPages;
     vector<string> ports;
+	ContentMaker _contentMaker;
 };
 
 void parser(const char *file, Server& config);
