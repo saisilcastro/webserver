@@ -70,7 +70,6 @@ vector<string> split(string str, string sep) {
 void Server::checkAcceptedMethod(Protocol &master) {
     static vector<string> methods;
     Location local = findLocationPath(master.getPath());
-
     methods = split(local.data["accepted_methods"], " ");
     if (methods.empty() || methods[0].empty()) {
         methods.clear();
@@ -91,6 +90,8 @@ void Server::checkAcceptedMethod(Protocol &master) {
         master.setMethod("INVALID");
     }
 }
+
+#define INVALIDSIZE -2
 
 string Server::createPacket(int client) {
     fd_set          read_fd;
@@ -142,7 +143,6 @@ string Server::createPacket(int client) {
                             master.extract(buffer);
                             checkAcceptedMethod(master);
                             packetCreated = true;
-
                             if (master.getFileLen() && master.getFileLen() <= maxBodySize) {
                                 path = "upload/" + master.getFileName();
                                 if (master.isMethod() == POST) {
@@ -169,6 +169,10 @@ string Server::createPacket(int client) {
                             if (master.getFileLen() <= maxBodySize)
                                 out.write(buffer + offset, dataLen);
                             writtenByte += dataLen;
+                        if(writtenByte > maxBodySize) {
+                            transfer = false;
+                            break;
+                        }
                             if (master.isMethod() == POST)
                                 cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
                         }
@@ -250,13 +254,13 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 								   "Date: %s"
 								   "Connection: %s\n"
 								   "Content-Type: %s\n"
-								   "Content-Lenght: %li\n\n",
+								   "Content-Length: %li\n\n",
 								   protocol.c_str(), ctime(&m_time), connection.c_str(), mime.c_str(), len);
 
 	char *content = new char[head_len + len];
 	sprintf(content, "%s", head);
 	memcpy(content + head_len, data, len);
-	int ok = send(client, content, head_len + len, 0);
+    int ok = send(client, content, head_len + len, 0);
 	if (ok == -1) {
 		cerr << "could not send content\n";
 	}
@@ -346,6 +350,9 @@ void Server::defineFullPath(string &fullPath, Location &location, string url) {
         fullPath = location.data["root"];
     else
         fullPath = root + url;
+    
+    if(_contentMaker.getStatus() == " 301 Moved Permanently")
+        fullPath = root + location.path;
 }
 
 void Server::defineLocationPath(Location &location, string path, string &LocationRoot) {
@@ -365,6 +372,15 @@ void Server::defineLocationPath(Location &location, string path, string &Locatio
         location.data["root"] = "default";
         location.data["index"] = "defaultPage.html";
     }
+
+    while(location.data.find("return") != location.data.end()) {
+        location = findLocationPath(location.data["return"]);
+        _contentMaker.setStatus(" 301 Moved Permanently");
+        if(location.data.find("root") != location.data.end())
+            LocationRoot = location.data["root"] + location.path;
+        else
+            LocationRoot = root + location.path;
+    }
 }
 
 void Server::LoadSpecifiedFile(int client, const string &path, const string &status) {
@@ -376,48 +392,45 @@ void Server::LoadSpecifiedFile(int client, const string &path, const string &sta
 void Server::response(int client, string path, string protocol) {
 	int method = master.isMethod();
     struct stat info;
-	string  status = " 200 OK";
     size_t  pos = path.rfind(".");
+    _contentMaker.setStatus(" 200 OK");
 	Stream  stream(this);
     Location location;
     string fullPath;
     static string LocationRoot;
-
     defineLocationPath(location, path, LocationRoot);
     defineFullPath(fullPath, location, extractURL(path));
+    cout << location.path << endl;
     if (transfer) {
 		if (method != DELETE && method != INVALID_REQUEST) {
 			mimeMaker(path);
 			if (pos == string::npos) {
 				if (maxBodySize < master.getFileLen() && master.getFileLen() > 0) {
-					loadErrorPage(stream, "413");
-					status = " 413 Content Too Large";
+                    loadErrorPage(stream, "413");
+					_contentMaker.setStatus(" 413 Content Too Large");
 				}
 				else if(stat(fullPath.c_str(), &info) == 0)
 				{
-					// _contentMaker = ContentMaker(client, protocol, "keep-alive", status, stream.getStream(), stream.streamSize());
 					if(location.data.find("index") != location.data.end())
 						loadIndexPage(stream, location);
 					else
 						loadDirectoryPage(stream, location);
 				}
 				else{
-					status = " 404 Not Found";
+					_contentMaker.setStatus(" 404 Not Found");
 					loadErrorPage(stream, "404");
 				}
 			}
 			else {
 				if (method == POST && maxBodySize > master.getFileLen()) {
-					contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
-					path = "/413.html";
-					status = " 413 Content Too Large";
+					_contentMaker.setStatus(" 413 Content Too Large");
 				}
 				else if ((pos = path.find(".")) != string::npos) {
 					if (path.find("?") != string::npos) {
 						if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
 							(path.find(".py") != string::npos && path[pos + 3])) {
 							path = "/404.html";
-							status = " 404 Not Found";
+                            _contentMaker.setStatus(" 404 Not Found");
 						}
 						else {
 							if (path.find(".php") != string::npos)
@@ -429,14 +442,20 @@ void Server::response(int client, string path, string protocol) {
 						if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
 							(path.find(".py") != string::npos && path.length() > pos + 3)) {
 							path = "/404.html";
-							status = " 404 Not Found";
+							_contentMaker.setStatus(" 404 Not Found");
 						}
 					}
 				}
                 if(LocationRoot != "")
+                {
+                    cout << LocationRoot + path << endl;
                     stream.loadFile(LocationRoot + path);
+                }
                 else
+                {
+                    cout << root + path << endl;
                     stream.loadFile(root + path);
+                }
 			}
 		}
 		else if (method == DELETE) {
@@ -445,24 +464,24 @@ void Server::response(int client, string path, string protocol) {
 			if (!access(file.c_str(), F_OK) && !access(file.c_str(), R_OK | W_OK | X_OK)) {
 				if (!stat(file.c_str(), &mStat) && mStat.st_size > 0){
 					if (remove(file.c_str()) == -1) {
-						status = " 405 Method Not Allowed";
-						loadErrorPage(stream, "405");
+						_contentMaker.setStatus(" 405 Method Not Allowed");
+                        loadErrorPage(stream, "405");
 					}
 				}
 			}
 			else {
-				status = " 403 Forbidden";
+				_contentMaker.setStatus(" 403 Forbidden");
 				loadErrorPage(stream, "403");
 			}
 		}
 		else
 		{
-			status = " 405 Method Not Allowed";
-			loadErrorPage(stream, "405");
+			_contentMaker.setStatus(" 405 Method Not Allowed");
+            loadErrorPage(stream, "405");
 		}
 	}
 	else {
-		status = " 500 Internal Server Error";
+		_contentMaker.setStatus(" 500 Internal Server Error");
 		loadErrorPage(stream, "500");
 	}
     _contentMaker = ContentMaker(client, protocol, "keep-alive", _contentMaker.getStatus(), stream.getStream(), stream.streamSize());

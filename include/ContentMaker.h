@@ -15,7 +15,7 @@ class ContentMaker {
 		size_t _len;
 
 	public:
-		ContentMaker() : _client(0), _protocol(""), _connection(""), _status(""), _data(NULL), _len(0) {}
+		ContentMaker() : _client(0), _protocol(""), _connection(""), _status(" 200 OK"), _data(NULL), _len(0) {}
 
 		ContentMaker(int client, string protocol, string connection, string status, void *data, size_t len)
 			: _client(client), _protocol(protocol), _connection(connection), _status(status), _data(data), _len(len) {}

@@ -116,7 +116,6 @@ string Config::getName(int pos) {
 	int i = 0;
 	for (vector<ServerInfo>::iterator it = info.begin(); it != info.end(); ++it) {
 		if (i == pos) {
-			cout << it->name << endl;
 			return it->name;
 		}
 		i++;
