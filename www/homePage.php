@@ -1,4 +1,4 @@
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -12,10 +12,4 @@
     ?>
     <p>Hoje é <?php echo date('d/m/Y'); ?> e a hora atual é <?php echo date('H:i:s'); ?>.</p>
 </body>
-</html> -->
-
-<?php
-    while(1){
-        echo("teste\n");
-    }
-?>
+</html>

@@ -265,12 +265,12 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 string getPageDefault(const string &errorCode) {
     static map<string, string> errorPages;
     if (errorPages.empty()) {
-        errorPages["403"] = "www/defaultPages/403.html";
-        errorPages["404"] = "www/defaultPages/404.html";
-        errorPages["405"] = "www/defaultPages/405.html";
-        errorPages["413"] = "www/defaultPages/413.html";
-        errorPages["500"] = "www/defaultPages/500.html";
-		errorPages["504"] = "www/defaultPages/504.html";
+        errorPages["403"] = "default/defaultErrorPages/403.html";
+        errorPages["404"] = "default/defaultErrorPages/404.html";
+        errorPages["405"] = "default/defaultErrorPages/405.html";
+        errorPages["413"] = "default/defaultErrorPages/413.html";
+        errorPages["500"] = "default/defaultErrorPages/500.html";
+		errorPages["504"] = "default/defaultErrorPages/504.html";
     }
     
     map<string, string>::iterator it = errorPages.find(errorCode);
@@ -395,7 +395,7 @@ void Server::response(int client, string path, string protocol) {
 				}
 				else if(stat(fullPath.c_str(), &info) == 0)
 				{
-					_contentMaker = ContentMaker(client, protocol, "keep-alive", status, stream.getStream(), stream.streamSize());
+					// _contentMaker = ContentMaker(client, protocol, "keep-alive", status, stream.getStream(), stream.streamSize());
 					if(location.data.find("index") != location.data.end())
 						loadIndexPage(stream, location);
 					else
@@ -465,6 +465,7 @@ void Server::response(int client, string path, string protocol) {
 		status = " 500 Internal Server Error";
 		loadErrorPage(stream, "500");
 	}
+    _contentMaker = ContentMaker(client, protocol, "keep-alive", _contentMaker.getStatus(), stream.getStream(), stream.streamSize());
 	contentMaker(_contentMaker);
 }
 

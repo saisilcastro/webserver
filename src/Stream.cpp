@@ -37,8 +37,8 @@ ContentMaker& Stream::getContentMaker() {
 
 void Stream::loadFile(std::string file) {
     if (access(file.c_str(), F_OK) == -1) {
-        // loadErrorPage(*this, "404");
-        // contentMaker(_contentMaker);
+        ServerRef->loadErrorPage(*this, "404");
+        ServerRef->getContentMaker().setStatus(" 404 Not Found");
         return;
     }
 
@@ -136,7 +136,7 @@ void Stream::loadFile(std::string file) {
             close(fd[0]); // Fecha a extremidade de leitura
 
             if (timeout_reached) {
-                loadFile("default/defaultErrorPages/504.html");
+                ServerRef->loadErrorPage(*this, "504");
                 ServerRef->getContentMaker().setStatus(" 504 Gateway Timeout");
                 return;
             }
