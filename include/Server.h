@@ -23,7 +23,7 @@
 #include <algorithm>
 #include <dirent.h>
 #include <sys/types.h>
-
+#include "ContentMaker.h"
 
 class Stream;
 
@@ -78,7 +78,8 @@ public:
     void loadDirectoryPage(Stream &stream, Location &location);
 	void execute(int socket);
 	void checkAcceptedMethod(Protocol &master);
-
+    ContentMaker& getContentMaker() { return _contentMaker; }
+    void contentMaker(ContentMaker &maker);
 private:
     string     host;
     string     port;
@@ -92,6 +93,7 @@ private:
 	vector<Location> location;
     map<string, string> errorPages;
     vector<string> ports;
+    ContentMaker _contentMaker;
 };
 
 void parser(const char *file, Server& config);

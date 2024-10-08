@@ -233,6 +233,35 @@ string  Server::mimeMaker(string path) {
 	return mime;
 }
 
+void Server::contentMaker(ContentMaker &maker)
+{
+    int client = maker.getClient();
+    string protocol = maker.getProtocol() + maker.getStatus();
+    string connection = maker.getConnection();
+    void *data = maker.getData();
+    size_t len = maker.getLen();
+
+    time_t  m_time;
+    char    head[65536];
+    m_time = time(NULL);
+    int head_len = sprintf(head, "%s\n"
+								   "Date: %s"
+								   "Connection: %s\n"
+								   "Content-Type: %s\n"
+								   "Content-Lenght: %li\n\n",
+								   protocol.c_str(), ctime(&m_time), connection.c_str(), mime.c_str(), len);
+	if (len) {
+
+	}
+	char *content = new char[head_len + len];
+	sprintf(content, "%s", head);
+	memcpy(content + head_len, data, len);
+	int ok = send(client, content, head_len + len, 0);
+	if (ok == -1) {
+		cerr << "could not send content\n";
+	}
+}
+
 void  Server::contentMaker(int client, string protocol, string connection, void *data, size_t len) {
 	time_t  m_time;
 	char    head[65536];
@@ -337,7 +366,7 @@ void Server::loadDirectoryPage(Stream &stream, Location &location) {
 
 void Server::response(int client, string path, string protocol) {
 	size_t  pos = path.rfind(".");
-	Stream  stream("");
+	Stream  stream(this);
 	string  status = " 200 OK";
 	string url = extractURL(path);
     struct stat info;
@@ -428,7 +457,8 @@ void Server::response(int client, string path, string protocol) {
 		status = " 500 Internal Server Error";
 		loadErrorPage(stream, "500");
 	}
-	contentMaker(client, protocol + status, "keep-alive", stream.getStream(), stream.streamSize());
+    _contentMaker = ContentMaker(client, protocol, "keep-alive", _contentMaker.getStatus(), stream.getStream(), stream.streamSize());
+	contentMaker(_contentMaker);
 }
 
 void    Server::requestTreat(int client, string data) {

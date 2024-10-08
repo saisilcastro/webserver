@@ -10,6 +10,8 @@ Stream::Stream(string file) : buffer(NULL), size(0) {
         saveFile(file);
 }
 
+Stream::Stream(Server* server) : buffer(NULL), size(0), serverRef(server) { loadFile("");}
+
 void    Stream::createStream(void *data, size_t len) {
     size = len;
     buffer = new char[size];
@@ -28,6 +30,11 @@ int		Stream::streamSize(void) {
 }
 
 void Stream::loadFile(std::string file) {
+    if(access(file.c_str(), F_OK) == -1)
+    {
+        loadFile("www/defaultPages/404.html");
+        serverRef->getContentMaker().setStatus(" 404 Not Found");
+    }
     if (file.find(".php") == std::string::npos && file.find(".py") == std::string::npos) {
         std::ifstream in(file.c_str(), std::ios::binary | std::ios::ate);
 

@@ -9,7 +9,7 @@ void handleSignal(int signal) {
 }
 
 int main(int argc, char **argv) {
-    std::signal(SIGINT, handleSignal);  // Ctrl+C Signal
+    std::signal(SIGINT, handleSignal);
     try
         {
         if (argc > 1) {

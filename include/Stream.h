@@ -9,15 +9,18 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <sys/wait.h>
+#include "Server.h"
 
 using namespace std;
 
 class Stream {
     void	*buffer;
     size_t	size;
+    Server* serverRef;
 public:
     Stream(void);
     Stream(string file);
+    Stream(Server* server);
     void    createStream(void *, size_t);
     void    setStream(void *, size_t);
     void	*getStream(void);
