@@ -14,12 +14,15 @@
 
 using namespace std;
 
-class Stream: public Server {
+class Stream{
     void	*buffer;
     size_t	size;
+    Server* ServerRef;
+
 public:
     Stream(void);
     Stream(string file);
+    Stream(Server *server);
     void    createStream(void *, size_t);
     void    setStream(void *, size_t);
     void	*getStream(void);
@@ -28,6 +31,8 @@ public:
     void	saveFile(string file);
     Stream & operator = (Stream &);
     ~Stream(void);
+    ContentMaker& getContentMaker();
+
 };
 
 #endif

@@ -81,7 +81,8 @@ public:
     void defineFullPath(string &fullPath, Location &location, string url);
     void defineLocationPath(Location &location, string path, string &LocationRoot);
 	void LoadSpecifiedFile(int client, const string &path, const string &status);
-	void contentMaker(ContentMaker& contentMaker);
+	void contentMaker(ContentMaker& content);
+    ContentMaker& getContentMaker() { return _contentMaker; }
 
 protected:
     string     host;

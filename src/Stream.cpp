@@ -10,6 +10,10 @@ Stream::Stream(string file) : buffer(NULL), size(0) {
         saveFile(file);
 }
 
+Stream::Stream(Server *server) : buffer(NULL), size(0) {
+    ServerRef = server;
+}
+
 void    Stream::createStream(void *data, size_t len) {
     size = len;
     buffer = new char[size];
@@ -25,6 +29,10 @@ void	*Stream::getStream(void) {
 
 int		Stream::streamSize(void) {
     return size;
+}
+
+ContentMaker& Stream::getContentMaker() {
+    return ServerRef->getContentMaker();
 }
 
 void Stream::loadFile(std::string file) {
@@ -128,8 +136,8 @@ void Stream::loadFile(std::string file) {
             close(fd[0]); // Fecha a extremidade de leitura
 
             if (timeout_reached) {
-                // loadFile("default/defaultErrorPages/504.html");
-                _contentMaker.printContent();
+                loadFile("default/defaultErrorPages/504.html");
+                ServerRef->getContentMaker().setStatus(" 504 Gateway Timeout");
                 return;
             }
 
