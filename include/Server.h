@@ -83,6 +83,7 @@ public:
 	void LoadSpecifiedFile(int client, const string &path, const string &status);
 	void contentMaker(ContentMaker& content);
     ContentMaker& getContentMaker() { return _contentMaker; }
+	bool HandleErrors(int client, string path, string protocol);
 
 protected:
     string     host;
