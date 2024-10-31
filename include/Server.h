@@ -84,6 +84,7 @@ public:
 	void contentMaker(ContentMaker& content);
     ContentMaker& getContentMaker() { return _contentMaker; }
 	bool HandleErrors(int client, string path, string protocol);
+    string getPageDefault(const string &errorCode);
 
 protected:
     string     host;
