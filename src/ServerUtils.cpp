@@ -391,7 +391,7 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 
 string Server::getPageDefault(const string &errorCode) {
     string page = errorPages[errorCode];
-    if(!page.empty() || access(page.c_str(), F_OK))
+    if(!page.empty() && access(page.c_str(), F_OK))
         return page;
 
     static map<string, string> errorPages;

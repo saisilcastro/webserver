@@ -86,16 +86,6 @@ public:
 	bool HandleErrors(int client, string path, string protocol);
     string getPageDefault(const string &errorCode);
 
-
-    // response functions
-    void handleError(Stream& stream, const string& errorCode, const string& errorMessage);
-    void handleDeleteRequest(int client, const string& path, Stream& stream);
-    void handleRequest(int method, int client, string& path, const string& protocol, Stream& stream, Location& location, const string& fullPath);
-    bool validatePostRequest(Stream& stream, string& path, const string& protocol);
-    void handleDirectoryOrFile(Stream& stream, Location& location, const string& fullPath);
-    void handleFileRequest(int client, string& path, const string& protocol, Stream& stream);
-    bool validateFileExtension(string& path);
-
 protected:
     string     host;
     string     port;
@@ -118,5 +108,4 @@ string extractURL(string &path);
 std::string ft_strip(const std::string& s);
 void Run(Server *server, int max);
 void handleSignal(int signal);
-
 #endif

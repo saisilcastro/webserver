@@ -158,13 +158,14 @@ void Server::response(int client, string path, string protocol) {
     static string LocationRoot;
     defineLocationPath(location, path, LocationRoot);
     defineFullPath(fullPath, location, extractURL(path));
+
     if (transfer) {
 		if (method != DELETE && method != INVALID_REQUEST) {
 			mimeMaker(path);
 			if (pos == string::npos) {
 				if (maxBodySize < master.getFileLen() && master.getFileLen() > 0) {
-					loadErrorPage(stream, "413");
-					_contentMaker.setStatus(" 413 Content Too Large");
+					loadError(client, getPageDefault("413"), "413 Payload Too Large");
+                    return;
 				}
 				else if(stat(fullPath.c_str(), &info) == 0)
 				{
@@ -182,14 +183,14 @@ void Server::response(int client, string path, string protocol) {
 				if (method == POST && maxBodySize > master.getFileLen()) {
 					contentMaker(client, protocol + " 200 OK", "keep-alive", stream.getStream(), stream.streamSize());
 					path = "/413.html";
-					_contentMaker.setStatus(" 413 Content Too Large");
+					_contentMaker.setStatus(" 413 Content Too Large"); // ?
 				}
 				else if ((pos = path.find(".")) != string::npos) {
 					if (path.find("?") != string::npos) {
 						if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
 							(path.find(".py") != string::npos && path[pos + 3])) {
-							path = "/404.html";
-							_contentMaker.setStatus(" 404 Not Found");
+							loadError(client, getPageDefault("404"), "404 Not Found");
+                            return;
 						}
 						else {
 							if (path.find(".php") != string::npos)
@@ -200,8 +201,8 @@ void Server::response(int client, string path, string protocol) {
 					} else {
 						if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
 							(path.find(".py") != string::npos && path.length() > pos + 3)) {
-							path = "/404.html";
-							_contentMaker.setStatus(" 404 Not Found");
+							loadError(client, getPageDefault("404"), "404 Not Found");
+                            return;
 						}
 					}
 				}
@@ -217,29 +218,27 @@ void Server::response(int client, string path, string protocol) {
 			if (!access(file.c_str(), F_OK) && !access(file.c_str(), R_OK | W_OK | X_OK)) {
 				if (!stat(file.c_str(), &mStat) && mStat.st_size > 0){
 					if (remove(file.c_str()) == -1) {
-						_contentMaker.setStatus(" 405 Method Not Allowed");
-						loadErrorPage(stream, "405");
+						loadError(client, getPageDefault("500"), "500 Internal Server Error");
+                        return;
 					}
 				}
 			}
 			else {
-				_contentMaker.setStatus(" 403 Forbidden");
-				loadErrorPage(stream, "403");
+				loadError(client, getPageDefault("404"), "404 Not Found");
+                return;
 			}
 		}
 		else
 		{
-			_contentMaker.setStatus(" 405 Method Not Allowed");
-			loadErrorPage(stream, "405");
+			loadError(client, getPageDefault("405"), "405 Method Not Allowed");
+            return;
 		}
 	}
 	else {
-		_contentMaker.setStatus(" 500 Internal Server Error");
-		loadErrorPage(stream, "500");
-		cout << _contentMaker.getStatus() <<  " STATUS" << endl;
+		loadError(client, getPageDefault("408"), "408 Request Timeout");
+        return;
 	}
-    _contentMaker = ContentMaker(client, protocol, "keep-alive", _contentMaker.getStatus(), stream.getStream(), stream.streamSize());
-	contentMaker(_contentMaker);
+    contentMaker(client, protocol + _contentMaker.getStatus(), "keep-alive", stream.getStream(), stream.streamSize());
 }
 
 void Server::execute(int socket) {
