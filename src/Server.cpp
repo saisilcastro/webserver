@@ -169,9 +169,7 @@ void Server::response(int client, string path, string protocol) {
 				else if(stat(fullPath.c_str(), &info) == 0)
 				{
 					if(location.data.find("index") != location.data.end())
-                    {
 						loadIndexPage(stream, location);
-                    }
 					else
 						loadDirectoryPage(stream, location);
 				}
