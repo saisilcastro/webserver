@@ -8,6 +8,7 @@
 using namespace std;
 typedef enum{
     INVALID_REQUEST,
+    ENTITY_TOO_LARGE,
     GET,
     POST,
     DELETE

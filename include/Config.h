@@ -23,6 +23,8 @@ typedef struct ServerInfo{
     size_t              maxBodySize;
     map<string, string> error;
     vector<Location>    location;
+
+    ServerInfo() : name(""), root(""), port(""), maxBodySize(0) {}
 }ServerInfo;
 
 class Config{

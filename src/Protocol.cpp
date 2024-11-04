@@ -53,10 +53,12 @@ void    Protocol::setMethod(string value) {
 method_e    Protocol::isMethod(void) {
     if (method == "GET")
         return GET;
-    if (method == "POST")
+    else if (method == "POST")
         return POST;
-    if (method == "DELETE")
+    else if (method == "DELETE")
         return DELETE;
+    else if(method == "ENTITY")
+        return ENTITY_TOO_LARGE;
     return INVALID_REQUEST;
 }
 

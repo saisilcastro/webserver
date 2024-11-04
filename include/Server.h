@@ -85,7 +85,8 @@ public:
     ContentMaker& getContentMaker() { return _contentMaker; }
 	bool HandleErrors(int client, string path, string protocol);
     string getPageDefault(const string &errorCode);
-
+    void loadError(int client, const std::string& filePath, const std::string& errorCode);
+    
 protected:
     string     host;
     string     port;

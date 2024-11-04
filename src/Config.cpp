@@ -1,5 +1,13 @@
 #include "Config.h"
 
+bool skipLine(string line, size_t start, size_t end) {
+	if (start == string::npos || end == string::npos)
+		return true;
+	else if(line[start] == '#' || line[start] == '\n' || line[start] == '\0')
+		return true;
+	return false;
+}
+
 Config::Config(void) {}
 
 void locationPrint(vector<Location>::iterator local) {
@@ -29,6 +37,8 @@ static void extractInfo(string line, ServerInfo & one, Location & local, int bra
 	std::string::size_type start = line.find_first_not_of(" \t\n\r\f\v");
     std::string::size_type end = line.find_last_not_of(" \t\n\r\f\v");
 	string keyword[] = {"server_name ", "root ", "listen ", "max_body_size ", "error_page ", "location "};
+	if(skipLine(line, start, end))
+		return;
 
 	if (start != string::npos && end != string::npos) {
 		if (bracket == 2) {
@@ -102,6 +112,7 @@ Config::Config(char *file) {
                 one.root.clear();
                 one.port.clear();
                 one.location.clear();
+				one.maxBodySize = 0;
 			}
 		}
 	}

@@ -41,6 +41,12 @@ void Stream::loadFile(std::string file) {
         ServerRef->getContentMaker().setStatus(" 404 Not Found");
         return;
     }
+    if (access(file.c_str(), R_OK) == -1) {
+        ServerRef->loadErrorPage(*this, "403");
+        ServerRef->getContentMaker().setStatus(" 403 Forbidden");
+        return;
+    }
+
 
     if (file.find(".php") == std::string::npos && file.find(".py") == std::string::npos) {
         std::ifstream in(file.c_str(), std::ios::binary | std::ios::ate);
@@ -58,6 +64,11 @@ void Stream::loadFile(std::string file) {
         in.read(reinterpret_cast<char *>(buffer), size);
         in.close();
     } else {
+        if(access(file.c_str(), X_OK) == -1) {
+            ServerRef->loadErrorPage(*this, "403");
+            ServerRef->getContentMaker().setStatus(" 403 Forbidden");
+            return;
+        }
         int fd[2];
 
         if (pipe(fd) == -1)

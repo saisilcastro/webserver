@@ -83,7 +83,10 @@ Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"
 }
 
 Server::Server(string _host, string _port, string _root, map<string, string> _error, vector<Location> _location, size_t _maxBodySize)
-: host(_host), port(_port), maxBodySize(_maxBodySize), root(_root), error(_error), location(_location){}
+: host(_host), port(_port), maxBodySize(_maxBodySize), root(_root), error(_error), location(_location)
+{
+    cout << "Max body size:" << maxBodySize << "|" << _maxBodySize << endl;
+}
 
 Server &Server::operator=(Server const &pointer) {
     if (this != &pointer) {
@@ -183,34 +186,6 @@ void Server::setHost(const string& host) {
 string Server::getHost() const {
     return host;
 }
-
-/* void Server::addLocation(const Location& location) {
-    location.push_back(location);
-} */
-
-/* void Server::setMaxBodySize(const string& size)
-{
-    int bodySizeInBytes = atoi(size.c_str());
-
-    if (bodySizeInBytes == 0 && size[0] != '0') {
-        throw runtime_error("Invalid body size format, using default file .conf");
-    }
-
-    if (size.find_first_of("Gg") != string::npos)
-        MaxBodySize = bodySizeInBytes * 1024 * 1024 * 1024;
-    else if (size.find_first_of("Mm") != string::npos)
-        MaxBodySize = bodySizeInBytes * 1024 * 1024;
-    else if (size.find_first_of("Kk") != string::npos)
-        MaxBodySize = bodySizeInBytes * 1024;
-    else if (size.find_first_not_of("0123456789") == string::npos)
-        MaxBodySize = bodySizeInBytes;
-    else
-	{
-
-        throw runtime_error("Invalid body size, using default file .conf");
-	}
-
-} */
 
 void Server::addErrorPage(const string& errorCode, const string& path) {
     error[errorCode] = path;
@@ -371,8 +346,8 @@ void Server::contentMaker(ContentMaker& content)
 void  Server::contentMaker(int client, string protocol, string connection, void *data, size_t len) {
 	time_t  m_time;
 	char    head[65536];
-	m_time = time(NULL);
-
+	m_time = time(NULL); 
+    cout << "|" << protocol << "|\n";
 	int head_len = sprintf(head, "%s\n"
 								   "Date: %s"
 								   "Connection: %s\n"
@@ -386,7 +361,8 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 	int ok = send(client, content, head_len + len, 0);
 	if (ok == -1) {
 		cerr << "could not send content\n";
-	}
+    }
+    delete[] content;
 }
 
 string Server::getPageDefault(const string &errorCode) {

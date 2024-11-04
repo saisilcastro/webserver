@@ -6,7 +6,6 @@ string Server::createPacket(int client) {
     struct timeval  timeout;
     bool            packetCreated = false;
     bool            creating = true;
-    bool            invalidRequest = false;  // Nova variável de controle
     char            buffer[65535];
     size_t          currentSize = 0;
     size_t          writtenByte = 0;
@@ -19,7 +18,7 @@ string Server::createPacket(int client) {
     master.reset();
     transfer = false;
     
-    while (creating && !invalidRequest) {  // Modificado para interromper ao detectar erro
+    while (creating) {
         FD_ZERO(&read_fd);
         FD_SET(client, &read_fd);
 
@@ -32,8 +31,7 @@ string Server::createPacket(int client) {
 			timeout.tv_usec = master.getFileLen() / 1000;
 		}
 
-        // Se houver um erro na requisição, cancelar o select
-        if (invalidRequest) {
+        if (master.isMethod() == INVALID_REQUEST || master.isMethod() == ENTITY_TOO_LARGE) {
             timeout.tv_sec = 0;
             timeout.tv_usec = 0;
         }
@@ -44,7 +42,7 @@ string Server::createPacket(int client) {
             transfer = false;
             cout << "Error on select\n";
         }
-        else if (receiving == 0 && !invalidRequest) {
+        else if (receiving == 0) {
             transfer = true;
             break;
         }
@@ -58,10 +56,8 @@ string Server::createPacket(int client) {
                         if (!packetCreated && !out.is_open()) {
                             master.extract(buffer);
                             checkAcceptedMethod(master);
-							if (master.isMethod() == INVALID_REQUEST) {
-                                invalidRequest = true;  // Marcar erro
-								break;  // Interromper processamento
-							}
+							if (master.isMethod() == INVALID_REQUEST)
+								break;
                             packetCreated = true;
 
                             if (master.getFileLen() && master.getFileLen() <= maxBodySize) {
@@ -78,6 +74,13 @@ string Server::createPacket(int client) {
                                 offset = (size_t)master.getHeaderLen();
                             }
                         }
+                        cout << "File len: " << master.getFileLen() << endl;
+                        if(master.getFileLen() != 0 && master.isMethod() == POST && master.getFileLen() > maxBodySize)
+                        {
+                            cout << master.getFileLen() << endl;
+                            master.setMethod("ENTITY");
+                            break;
+                        } 
                         dataLen = piece - offset;
                         size_t remainingLen = size_t(master.getFileLen()) - writtenByte;
 
@@ -117,34 +120,51 @@ string Server::createPacket(int client) {
     }
     
     out.close();
-    if (!transfer) {
+    if (!transfer || master.isMethod() == ENTITY_TOO_LARGE) {
         remove(path.c_str());
         cout << "could not transfer " << path << endl;
     }
     return "";
 }
 
-void loadError(int client, const std::string& filePath, const std::string& errorCode)
+void Server::loadError(int client, const std::string& filePath, const std::string& errorCode)
 {
     std::ifstream file(filePath.c_str());
-    if (!file) {
-        std::cerr << "Erro: Não foi possível abrir o arquivo de erro: " << filePath << std::endl;
+
+    std::string errorPage;
+    std::string statusCode;
+    
+    if (access(filePath.c_str(), F_OK) == -1) {
+        errorPage = getPageDefault("404");
+        statusCode = "404 Not Found";
+    }
+    else if (access(filePath.c_str(), R_OK) == -1) {
+        errorPage = getPageDefault("403");
+        statusCode = "403 Forbidden";
+    }
+    else if (!file) {
+        errorPage = getPageDefault("500");
+        statusCode = "500 Internal Server Error";
+    }
+
+    if (!statusCode.empty()) {
+        loadError(client, errorPage, statusCode);
         return;
     }
 
     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    
-    std::ostringstream contentLengthStream;
-    contentLengthStream << content.size();
 
-    std::string response = "HTTP/1.1 " + errorCode + " Error\r\n"
-                           "Connection: keep-alive\r\n"
-                           "Content-Type: text/html\r\n"
-                           "Content-Length: " + contentLengthStream.str() + "\r\n\r\n" +
-                           content;
+    std::ostringstream responseStream;
+    responseStream << "HTTP/1.1 " << errorCode << " Error\r\n"
+                   << "Connection: keep-alive\r\n"
+                   << "Content-Type: text/html\r\n"
+                   << "Content-Length: " << content.size() << "\r\n\r\n"
+                   << content;
+    
+    std::string response = responseStream.str();
 
     if (send(client, response.c_str(), response.size(), 0) == -1) {
-        std::cerr << "Error sending response" << std::endl;
+        loadError(client, getPageDefault("500"), "500 Internal Server Error");
     }
 }
 
@@ -155,16 +175,29 @@ void Server::response(int client, string path, string protocol) {
 	Stream  stream(this);
     Location location;
     string fullPath;
+    _contentMaker.setStatus(" 200 OK");
     static string LocationRoot;
     defineLocationPath(location, path, LocationRoot);
     defineFullPath(fullPath, location, extractURL(path));
+
+    if(method == INVALID_REQUEST)
+    {
+        loadError(client, getPageDefault("405"), "405 Method Not Allowed");
+        return;
+    }
+    else if(method == ENTITY_TOO_LARGE)
+    {
+        loadError(client, getPageDefault("413"), "413 Payload Too Large");
+        return;
+    }
 
     if (transfer) {
 		if (method != DELETE && method != INVALID_REQUEST) {
 			mimeMaker(path);
 			if (pos == string::npos) {
 				if (maxBodySize < master.getFileLen() && master.getFileLen() > 0) {
-					loadError(client, getPageDefault("413"), "413 Payload Too Large");
+					cout << "Entrou 413\n";
+                    loadError(client, getPageDefault("413"), "413 Payload Too Large");
                     return;
 				}
 				else if(stat(fullPath.c_str(), &info) == 0)
@@ -224,7 +257,7 @@ void Server::response(int client, string path, string protocol) {
 				}
 			}
 			else {
-				loadError(client, getPageDefault("404"), "404 Not Found");
+				loadError(client, getPageDefault("403"), "403 Forbidden");
                 return;
 			}
 		}
@@ -235,6 +268,7 @@ void Server::response(int client, string path, string protocol) {
 		}
 	}
 	else {
+        cout << "entrou 408?\n";
 		loadError(client, getPageDefault("408"), "408 Request Timeout");
         return;
 	}
