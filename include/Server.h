@@ -75,7 +75,7 @@ public:
     string adjustScriptPath(const string &path);
     void loadIndexPage(Stream &stream, Location &location);
     void loadErrorPage(Stream &stream, const string &errorCode);
-    void loadDirectoryPage(Stream &stream, Location &location);
+    void loadDirectoryPage(int client, Stream &stream, const std::string &fullPath);
 	void execute(int socket);
 	void checkAcceptedMethod(Protocol &master);
     void defineFullPath(string &fullPath, Location &location, string url);
@@ -86,7 +86,17 @@ public:
 	bool HandleErrors(int client, string path, string protocol);
     string getPageDefault(const string &errorCode);
     void loadError(int client, const std::string& filePath, const std::string& errorCode);
-    
+    void printErrors(const std::vector<std::string>& codeErrors) {
+        cout << "Porta: " << port << endl;
+        for (std::vector<std::string>::const_iterator it = codeErrors.begin(); it != codeErrors.end(); ++it) {
+            std::map<std::string, std::string>::const_iterator errIt = error.find(*it);
+            if (errIt != error.end()) {
+                std::cout << "Erro: " << errIt->second << std::endl;
+            } else {
+                std::cout << "Erro: Código \"" << *it << "\" não encontrado." << std::endl;
+            }
+        }
+    }
 protected:
     string     host;
     string     port;

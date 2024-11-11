@@ -169,6 +169,11 @@ void Server::loadError(int client, const std::string& filePath, const std::strin
 }
 
 void Server::response(int client, string path, string protocol) {
+    cout << "AAAAAAAAAAAA" << error["404"] << endl;
+    vector<string> errorCodes;
+    errorCodes.push_back("404");
+    errorCodes.push_back("413");
+    printErrors(errorCodes);
 	int method = master.isMethod();
     struct stat info;
     size_t  pos = path.rfind(".");
@@ -205,7 +210,10 @@ void Server::response(int client, string path, string protocol) {
 					if(location.data.find("index") != location.data.end())
 						loadIndexPage(stream, location);
 					else
-						loadDirectoryPage(stream, location);
+                    {
+                        cout << "|" << fullPath << "|" << endl;
+						loadDirectoryPage(client, stream, fullPath);
+                    }
 				}
 				else{
                     loadError(client, getPageDefault("404"), "404 Not Found");

@@ -10,6 +10,9 @@ void handleSignal(int signal) {
 
 int main(int argc, char **argv) {
     std::signal(SIGINT, handleSignal);  // Ctrl+C Signal
+    vector<string> errorCodes;
+    errorCodes.push_back("404");
+    errorCodes.push_back("413");
     try{
         if (argc > 1) {
             Config config(argv[1]);
@@ -19,7 +22,11 @@ int main(int argc, char **argv) {
             max = 0;
 
             for (vector<ServerInfo>::iterator it = info.begin(); it != info.end(); ++it)
+            {
                 server[max++] = Server(it->name, it->port, it->root, it->error, it->location, it->maxBodySize);
+            }
+            for(size_t i = 0; i < max; i++)
+                server[i].printErrors(errorCodes);
 
             for (size_t i = 0; i < max; i++)
                 Run(server, max);

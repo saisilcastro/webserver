@@ -83,10 +83,18 @@ Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"
 }
 
 Server::Server(string _host, string _port, string _root, map<string, string> _error, vector<Location> _location, size_t _maxBodySize)
-: host(_host), port(_port), maxBodySize(_maxBodySize), root(_root), error(_error), location(_location)
-{
-    cout << "Max body size:" << maxBodySize << "|" << _maxBodySize << endl;
+: host(_host), port(_port), maxBodySize(_maxBodySize), root(_root), error(_error), location(_location) {
+    cout << "Host: " << host << endl;
+    cout << "Port: " << port << endl;
+    cout << "Root: " << root << endl;
+    cout << "Max Body Size: " << maxBodySize << endl;
+
+    cout << "Errors:" << endl;
+    for (map<string, string>::const_iterator it = error.begin(); it != error.end(); ++it) {
+        cout << "  Code: " << it->first << ", Message: " << it->second << endl;
+    }
 }
+
 
 Server &Server::operator=(Server const &pointer) {
     if (this != &pointer) {
@@ -98,6 +106,7 @@ Server &Server::operator=(Server const &pointer) {
 		location = pointer.location;
         maxBodySize = pointer.maxBodySize;
         transfer = pointer.transfer;
+        error = pointer.error;
     }
     return *this;
 }
@@ -125,9 +134,9 @@ vector<Location>::const_iterator Server::getEnd() const {
 }
 
 
-void trim(std::string& str) {
+void trim(string& str) {
     size_t start = str.find_first_not_of(" \t\n\r\f\v");
-    if (start == std::string::npos) {
+    if (start == string::npos) {
         str.clear();
         return;
     }
@@ -135,15 +144,15 @@ void trim(std::string& str) {
     str = str.substr(start, end - start + 1);
 }
 
-void Server::setPort(std::string& port) {
-    if (port.find(",") != std::string::npos) {
+void Server::setPort(string& port) {
+    if (port.find(",") != string::npos) {
         size_t pos = 0;
-        std::string token;
-        while ((pos = port.find(",")) != std::string::npos) {
+        string token;
+        while ((pos = port.find(",")) != string::npos) {
             token = port.substr(0, pos);
             trim(token);
             if (!token.empty()) {
-                if (std::find(this->ports.begin(), this->ports.end(), token) == this->ports.end()) {
+                if (find(this->ports.begin(), this->ports.end(), token) == this->ports.end()) {
                     this->ports.push_back(token);
                 }
             }
@@ -151,14 +160,14 @@ void Server::setPort(std::string& port) {
         }
         trim(port);
         if (!port.empty()) {
-            if (std::find(this->ports.begin(), this->ports.end(), port) == this->ports.end()) {
+            if (find(this->ports.begin(), this->ports.end(), port) == this->ports.end()) {
                 this->ports.push_back(port);
             }
         }
     } else {
         trim(port);
         if (!port.empty()) {
-            if (std::find(this->ports.begin(), this->ports.end(), port) == this->ports.end()) {
+            if (find(this->ports.begin(), this->ports.end(), port) == this->ports.end()) {
                 this->ports.push_back(port);
             }
         }
@@ -207,11 +216,11 @@ string extractURL(string &path)
     return (path);
 }
 
-std::string ft_strip(const std::string& s) {
-    std::string::size_type start = s.find_first_not_of(" \t\n\r\f\v");
-    if (start == std::string::npos)
+string ft_strip(const string& s) {
+    string::size_type start = s.find_first_not_of(" \t\n\r\f\v");
+    if (start == string::npos)
         return "";
-    std::string::size_type end = s.find_last_not_of(" \t\n\r\f\v");
+    string::size_type end = s.find_last_not_of(" \t\n\r\f\v");
     return s.substr(start, end - start + 1);
 }
 
@@ -366,7 +375,8 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 }
 
 string Server::getPageDefault(const string &errorCode) {
-    string page = errorPages[errorCode];
+    string page = error[errorCode];
+    cout << "Pagina de Erro 404 e 413: " << error["404"] << " " << error["413"] << endl;
     if(!page.empty() && access(page.c_str(), F_OK))
         return page;
 
@@ -409,44 +419,61 @@ void Server::loadIndexPage(Stream &stream, Location &location) {
     
 }
 
-void Server::loadDirectoryPage(Stream &stream, Location &location) {
+#include <iostream>
+#include <sstream>
+#include <dirent.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-    std::string html = "<html><head><title>Index of " + location.path + "</title></head><body><h1>Index of " + location.path + "</h1><hr><pre>";
+#include <iostream>
+#include <fstream>
+#include <dirent.h>
+#include <unistd.h>
+
+void Server::loadDirectoryPage(int client, Stream &stream, const string &fullPath) {
+
+    string html = "<html><head><title>Index of " + fullPath + "</title></head>"
+                       "<body><h1>Index of " + fullPath + "</h1><hr><pre>";
+    
     DIR *dir;
     struct dirent *ent;
-    if ((dir = opendir(location.path.c_str())) != NULL) {
+
+    if ((dir = opendir(fullPath.c_str())) != NULL) {
         while ((ent = readdir(dir)) != NULL) {
-            std::string fileName(ent->d_name);
-            html += "<a href=\"" + fileName + "\">" + fileName + "</a><br>";
+            string fileName(ent->d_name);
+            html += fileName + "<br>";
         }
         closedir(dir);
     } else {
-        perror("could not open directory");
+        loadError(client, getPageDefault("500"), "500 Internal Server Error");
+        return;
     }
+
     html += "</pre><hr></body></html>";
 
     char tempFile[] = "/tmp/tmpFileXXXXXX";
     int fd = mkstemp(tempFile);
     if (fd == -1) {
-        perror("could not create temporary file");
+        loadError(client, getPageDefault("500"), "500 Internal Server Error");
         return;
     }
 
-    std::ofstream ofs(tempFile);
+    ofstream ofs(tempFile);
     if (ofs.is_open()) {
         ofs << html;
         ofs.close();
     } else {
-        perror("could not open temporary file for writing");
+        loadError(client, getPageDefault("500"), "500 Internal Server Error");
         close(fd);
         return;
     }
 
     stream.loadFile(tempFile);
     close(fd);
-    std::remove(tempFile);
-
+    remove(tempFile);
 }
+
+
 
 void Server::defineFullPath(string &fullPath, Location &location, string url) {
     if(location.data.find("root") != location.data.end())
