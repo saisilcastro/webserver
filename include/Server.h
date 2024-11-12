@@ -87,7 +87,6 @@ public:
     string getPageDefault(const string &errorCode);
     void loadError(int client, const std::string& filePath, const std::string& errorCode);
     void printErrors(const std::vector<std::string>& codeErrors) {
-        cout << "Porta: " << port << endl;
         for (std::vector<std::string>::const_iterator it = codeErrors.begin(); it != codeErrors.end(); ++it) {
             std::map<std::string, std::string>::const_iterator errIt = error.find(*it);
             if (errIt != error.end()) {

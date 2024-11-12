@@ -84,15 +84,12 @@ Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"
 
 Server::Server(string _host, string _port, string _root, map<string, string> _error, vector<Location> _location, size_t _maxBodySize)
 : host(_host), port(_port), maxBodySize(_maxBodySize), root(_root), error(_error), location(_location) {
-    cout << "Host: " << host << endl;
-    cout << "Port: " << port << endl;
-    cout << "Root: " << root << endl;
-    cout << "Max Body Size: " << maxBodySize << endl;
-
-    cout << "Errors:" << endl;
-    for (map<string, string>::const_iterator it = error.begin(); it != error.end(); ++it) {
-        cout << "  Code: " << it->first << ", Message: " << it->second << endl;
-    }
+	errorPages["403"] = "default/defaultErrorPages/403.html";
+	errorPages["404"] = "default/defaultErrorPages/404.html";
+	errorPages["405"] = "default/defaultErrorPages/405.html";
+	errorPages["413"] = "default/defaultErrorPages/413.html";
+	errorPages["500"] = "default/defaultErrorPages/500.html";
+	errorPages["504"] = "default/defaultErrorPages/504.html";
 }
 
 
@@ -356,7 +353,6 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 	time_t  m_time;
 	char    head[65536];
 	m_time = time(NULL); 
-    cout << "|" << protocol << "|\n";
 	int head_len = sprintf(head, "%s\n"
 								   "Date: %s"
 								   "Connection: %s\n"
@@ -376,29 +372,18 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 
 string Server::getPageDefault(const string &errorCode) {
     string page = error[errorCode];
-    cout << "Pagina de Erro 404 e 413: " << error["404"] << " " << error["413"] << endl;
     if(!page.empty() && access(page.c_str(), F_OK))
         return page;
-
-    static map<string, string> errorPages;
-    if (errorPages.empty()) {
-        errorPages["403"] = "default/defaultErrorPages/403.html";
-        errorPages["404"] = "default/defaultErrorPages/404.html";
-        errorPages["405"] = "default/defaultErrorPages/405.html";
-        errorPages["413"] = "default/defaultErrorPages/413.html";
-        errorPages["500"] = "default/defaultErrorPages/500.html";
-		errorPages["504"] = "default/defaultErrorPages/504.html";
-    }
     
-    map<string, string>::iterator it = errorPages.find(errorCode);
-    if (it != errorPages.end()) {
+    map<string, string>::iterator it = this->errorPages.find(errorCode);
+    if (it != this->errorPages.end()) {
         return it->second;
     }
     return("");
 }
 
 void Server::loadErrorPage(Stream &stream, const string &errorCode) {
-    string page = errorPages[errorCode];
+    string page = this->errorPages[errorCode];
     if(page.empty() || !access(page.c_str(), F_OK))
         stream.loadFile(getPageDefault(errorCode));
     else

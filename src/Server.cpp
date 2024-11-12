@@ -74,10 +74,8 @@ string Server::createPacket(int client) {
                                 offset = (size_t)master.getHeaderLen();
                             }
                         }
-                        cout << "File len: " << master.getFileLen() << endl;
                         if(master.getFileLen() != 0 && master.isMethod() == POST && master.getFileLen() > maxBodySize)
                         {
-                            cout << master.getFileLen() << endl;
                             master.setMethod("ENTITY");
                             break;
                         } 
@@ -169,11 +167,6 @@ void Server::loadError(int client, const std::string& filePath, const std::strin
 }
 
 void Server::response(int client, string path, string protocol) {
-    cout << "AAAAAAAAAAAA" << error["404"] << endl;
-    vector<string> errorCodes;
-    errorCodes.push_back("404");
-    errorCodes.push_back("413");
-    printErrors(errorCodes);
 	int method = master.isMethod();
     struct stat info;
     size_t  pos = path.rfind(".");
@@ -211,7 +204,6 @@ void Server::response(int client, string path, string protocol) {
 						loadIndexPage(stream, location);
 					else
                     {
-                        cout << "|" << fullPath << "|" << endl;
 						loadDirectoryPage(client, stream, fullPath);
                     }
 				}
