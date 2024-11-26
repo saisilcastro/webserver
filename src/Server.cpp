@@ -1,97 +1,16 @@
 #include "Stream.h"
 #include "Server.h"
-#define MAX_CLIENT 65535
 
-int Server::serverSocket(int type) {
-    struct addrinfo hints;
-    struct addrinfo *result;
-    struct addrinfo *cur;
-    int status;
-    int in_use = 1;
+#include <iostream>
+#include <fstream>
+#include <cstring>
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <filesystem>
 
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = type;
-    hints.ai_flags = AI_PASSIVE;
-    hints.ai_protocol = 0;
-    hints.ai_addr = NULL;
-    hints.ai_next = NULL;
-
-    if ((status = getaddrinfo(NULL, port.c_str(), &hints, &result)) != 0) {
-        cerr << "getaddrinfo: " << gai_strerror(status) << "\n";
-        return -1;
-    }
-
-    for (cur = result; cur; cur = cur->ai_next) {
-        if ((sock = socket(cur->ai_family, cur->ai_socktype, cur->ai_protocol)) == -1)
-            continue;
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &in_use, sizeof(int)) == -1) {
-            perror("address yet in use");
-            close(sock);
-            freeaddrinfo(result);
-            return -1;
-        }
-        if (!bind(sock, cur->ai_addr, cur->ai_addrlen))
-            break;
-        close(sock);
-    }
-    freeaddrinfo(result);
-
-    if (cur == NULL) {
-        perror("could not bind");
-        return -1;
-    }
-    if (listen(sock, MAX_CLIENT) < 0) {
-        perror("listen failure");
-        close(sock);
-        return -1;
-    }
-    if (fcntl(sock, F_SETFL, O_NONBLOCK) < 0) {
-        perror("non block set error");
-        close(sock);
-        return -1;
-    }
-    return sock;
-}
-
-vector<string> split(string str, string sep) {
-	vector<string> result;
-	size_t pos = 0;
-	size_t found;
-
-	while ((found = str.find(sep, pos)) != string::npos) {
-		result.push_back(str.substr(pos, found - pos));
-		pos = found + sep.length();
-	}
-	result.push_back(str.substr(pos));
-	return result;
-}
-
-void Server::checkAcceptedMethod(Protocol &master) {
-    static vector<string> methods;
-    Location local = findLocationPath(master.getPath());
-    methods = split(local.data["accepted_methods"], " ");
-    if (methods.empty() || methods[0].empty()) {
-        methods.clear();
-        methods.push_back("GET");
-        methods.push_back("POST");
-        methods.push_back("DELETE");
-    }
-
-    string methodStr;
-    switch (master.isMethod()) {
-        case GET:    methodStr = "GET";    break;
-        case POST:   methodStr = "POST";   break;
-        case DELETE: methodStr = "DELETE"; break;
-        default:     methodStr = "INVALID"; break;
-    }
-
-    if (find(methods.begin(), methods.end(), methodStr) == methods.end()) {
-        master.setMethod("INVALID");
-    }
-}
-
-#define INVALIDSIZE -2
+using namespace std;
 
 string Server::createPacket(int client) {
     fd_set          read_fd;
@@ -109,40 +28,54 @@ string Server::createPacket(int client) {
 
     master.reset();
     transfer = false;
-    
+
+    if (!std::filesystem::exists(root + "upload")) {
+        std::filesystem::create_directory(root + "upload");
+    }
+
     while (creating) {
         FD_ZERO(&read_fd);
         FD_SET(client, &read_fd);
 
         if (!packetCreated || maxBodySize < master.getFileLen()) {
-			timeout.tv_sec = 10;
-			timeout.tv_usec = 0;
-		}
-		else {
+            timeout.tv_sec = 10;
+            timeout.tv_usec = 0;
+        } else {
             timeout.tv_sec = 0;
-			timeout.tv_usec = master.getFileLen() / 1000;
-		}
+            timeout.tv_usec = master.getFileLen() / 1000;
+        }
+
+        if (master.isMethod() == INVALID_REQUEST || master.isMethod() == ENTITY_TOO_LARGE || master.isMethod() == INVALID_HOST) {
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 0;
+        }
+
         int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
         if (receiving < 0) {
             creating = false;
             transfer = false;
             cout << "Error on select\n";
-        }
-        else if (receiving == 0) {
+        } else if (receiving == 0) {
             transfer = true;
             break;
-        }
-        else {
+        } else {
             if (FD_ISSET(client, &read_fd)) {
                 while (true) {
+                    memset(buffer, 0, sizeof(buffer));
                     piece = recv(client, buffer, 65535, 0);
-
                     if (piece > 0) {
                         currentSize += piece;
                         if (!packetCreated && !out.is_open()) {
                             master.extract(buffer);
                             checkAcceptedMethod(master);
+                            if (master.isMethod() == INVALID_REQUEST)
+                                break;
+                            else if (host != "" && master.getHost() != "localhost" && master.getHost() != "127.0.0.1" && master.getHost() != host) {
+                                master.setMethod("INVALID");
+                                break;
+                            }
                             packetCreated = true;
+
                             if (master.getFileLen() && master.getFileLen() <= maxBodySize) {
                                 path = "upload/" + master.getFileName();
                                 if (master.isMethod() == POST) {
@@ -152,10 +85,17 @@ string Server::createPacket(int client) {
                                     }
                                     out.open(path.c_str(), ios::out | ios::binary);
                                 }
-                                if (!out.is_open())
-                                    continue;
+                                if (!out.is_open()) {
+                                    cerr << "Error: Unable to open file at path " << path << endl;
+                                    creating = false;
+                                    break;
+                                }
                                 offset = (size_t)master.getHeaderLen();
                             }
+                        }
+                        if (master.getFileLen() != 0 && master.isMethod() == POST && master.getFileLen() > maxBodySize) {
+                            master.setMethod("ENTITY_TOO_LARGE");
+                            break;
                         }
                         dataLen = piece - offset;
                         size_t remainingLen = size_t(master.getFileLen()) - writtenByte;
@@ -169,10 +109,6 @@ string Server::createPacket(int client) {
                             if (master.getFileLen() <= maxBodySize)
                                 out.write(buffer + offset, dataLen);
                             writtenByte += dataLen;
-                        if(writtenByte > maxBodySize) {
-                            transfer = false;
-                            break;
-                        }
                             if (master.isMethod() == POST)
                                 cout << "uploaded " << writtenByte << " of " << master.getFileLen() << endl;
                         }
@@ -182,14 +118,12 @@ string Server::createPacket(int client) {
                             break;
                         }
                         offset = 0;
-                    }
-                    else if (piece == 0 || writtenByte >= master.getFileLen()) {
+                    } else if (piece == 0 || writtenByte >= master.getFileLen()) {
                         cout << "Received entire file\n";
                         transfer = true;
                         creating = true;
                         break;
-                    }
-                    else {
+                    } else {
                         transfer = false;
                         cout << "*uploaded " << writtenByte << " of " << master.getFileLen() << endl;
                         break;
@@ -198,307 +132,144 @@ string Server::createPacket(int client) {
             }
         }
     }
-    
+
     out.close();
-    if (!transfer) {
-        remove(path.c_str());
-        cout << "could not transfer " << path << endl;
+
+    if (master.isMethod() == ENTITY_TOO_LARGE)
+        usleep(master.getFileLen() / 1000);
+
+    if (!transfer || master.isMethod() == ENTITY_TOO_LARGE) {
+        if (!path.empty() && std::filesystem::is_regular_file(path)) {
+            remove(path.c_str());
+        }
+        cerr << "could not transfer " << path << endl;
     }
+
     return "";
 }
 
-string  Server::mimeMaker(string path) {
-	size_t  pos;
 
-	mime = "text/html";
-	if ((pos = path.rfind(".")) != string::npos) {
-		string  ext = path.substr(pos + 1, path.size() - pos);
-
-		if (ext == "htm" || ext == "html")
-			mime = "text/html";
-		else if (ext == "css")
-			mime = "text/css"; 
-		else if (ext == "js")
-			mime = "application/javascript";
-		else if (ext == "json")
-			mime = "application/json";
-		else if (ext == "txt")
-			mime = "text/plan";
-		else if (ext == "gif")
-			mime = "image/gif";
-		else if (ext == "jpg" || ext == "jpeg")
-			mime = "image/jpg";
-		else
-			mime = "text/html";
-	}
-	return mime;
-}
-
-void Server::contentMaker(ContentMaker& content)
+void Server::loadError(int client, string filePath, const string& errorCode)
 {
-    int client = content.getClient();
-    string protocol = content.getProtocol() + content.getStatus();
-    string connection = content.getConnection();
-    void *data = content.getData();
-    size_t len = content.getLen();
+    trim(filePath);
+    ifstream file(filePath.c_str());
 
-    contentMaker(client, protocol, connection, data, len);
-}
-
-void  Server::contentMaker(int client, string protocol, string connection, void *data, size_t len) {
-	time_t  m_time;
-	char    head[65536];
-	m_time = time(NULL);
-
-	int head_len = sprintf(head, "%s\n"
-								   "Date: %s"
-								   "Connection: %s\n"
-								   "Content-Type: %s\n"
-								   "Content-Length: %li\n\n",
-								   protocol.c_str(), ctime(&m_time), connection.c_str(), mime.c_str(), len);
-
-	char *content = new char[head_len + len];
-	sprintf(content, "%s", head);
-	memcpy(content + head_len, data, len);
-    int ok = send(client, content, head_len + len, 0);
-	if (ok == -1) {
-		cerr << "could not send content\n";
-	}
-}
-
-string getPageDefault(const string &errorCode) {
-    static map<string, string> errorPages;
-    if (errorPages.empty()) {
-        errorPages["403"] = "default/defaultErrorPages/403.html";
-        errorPages["404"] = "default/defaultErrorPages/404.html";
-        errorPages["405"] = "default/defaultErrorPages/405.html";
-        errorPages["413"] = "default/defaultErrorPages/413.html";
-        errorPages["500"] = "default/defaultErrorPages/500.html";
-		errorPages["504"] = "default/defaultErrorPages/504.html";
-    }
+    string errorPage;
+    string statusCode;
     
-    map<string, string>::iterator it = errorPages.find(errorCode);
-    if (it != errorPages.end()) {
-        return it->second;
+    if (access(filePath.c_str(), F_OK) == -1) {
+        errorPage = getPageDefault("404");
+        statusCode = "404 Not Found";
     }
-    return("");
-}
-
-void Server::loadErrorPage(Stream &stream, const string &errorCode) {
-    string page = errorPages[errorCode];
-    if(page.empty())
-        stream.loadFile(getPageDefault(errorCode));
-    else
-        stream.loadFile(root + page);
-}
-
-void Server::loadIndexPage(Stream &stream, Location &location) {
-    string index = location.data["index"];
-	string tmpRoot = location.data["root"];
-
-	if(index.empty())
-		index = findLocationPath("/").data["index"];
-
-    if(tmpRoot.empty())
-        stream.loadFile(root + location.path + '/' + index);
-    else
-        stream.loadFile(tmpRoot + '/' + index);
-    
-}
-
-void Server::loadDirectoryPage(Stream &stream, Location &location) {
-
-    std::string html = "<html><head><title>Index of " + location.path + "</title></head><body><h1>Index of " + location.path + "</h1><hr><pre>";
-    DIR *dir;
-    struct dirent *ent;
-    if ((dir = opendir(location.path.c_str())) != NULL) {
-        while ((ent = readdir(dir)) != NULL) {
-            std::string fileName(ent->d_name);
-            html += "<a href=\"" + fileName + "\">" + fileName + "</a><br>";
-        }
-        closedir(dir);
-    } else {
-        perror("could not open directory");
+    else if (access(filePath.c_str(), R_OK) == -1) {
+        errorPage = getPageDefault("403");
+        statusCode = "403 Forbidden";
     }
-    html += "</pre><hr></body></html>";
+    else if (!file) {
+        errorPage = getPageDefault("500");
+        statusCode = "500 Internal Server Error";
+    }
 
-    char tempFile[] = "/tmp/tmpFileXXXXXX";
-    int fd = mkstemp(tempFile);
-    if (fd == -1) {
-        perror("could not create temporary file");
+    if (!statusCode.empty()) {
+        loadError(client, errorPage, statusCode);
         return;
     }
 
-    std::ofstream ofs(tempFile);
-    if (ofs.is_open()) {
-        ofs << html;
-        ofs.close();
-    } else {
-        perror("could not open temporary file for writing");
-        close(fd);
-        return;
-    }
+    string content((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
 
-    stream.loadFile(tempFile);
-    close(fd);
-    std::remove(tempFile);
-
-}
-
-void Server::defineFullPath(string &fullPath, Location &location, string url) {
-    if(location.data.find("root") != location.data.end())
-        fullPath = location.data["root"];
-    else
-        fullPath = root + url;
+    ostringstream responseStream;
+    responseStream << "HTTP/1.1 " << errorCode << " Error\r\n"
+                   << "Connection: keep-alive\r\n"
+                   << "Content-Type: text/html\r\n"
+                   << "Content-Length: " << content.size() << "\r\n\r\n"
+                   << content;
     
-    if(_contentMaker.getStatus() == " 301 Moved Permanently")
-        fullPath = root + location.path;
-}
+    string response = responseStream.str();
 
-void Server::defineLocationPath(Location &location, string path, string &LocationRoot) {
-    string url = extractURL(path);
-    if (url == "")
-        location = findLocationPath("/");
-    else
-        location = findLocationPath(url);
-
-    if(location.data.find("root") != location.data.end())
-        LocationRoot = location.data["root"];
-    else if(!location.path.empty() && location.data.find("root") == location.data.end())
-        LocationRoot = "";
-
-    if (location.path.empty() && location.data.empty()) {
-        location.path = "default";
-        location.data["root"] = "default";
-        location.data["index"] = "defaultPage.html";
-    }
-
-    while(location.data.find("return") != location.data.end()) {
-        location = findLocationPath(location.data["return"]);
-        _contentMaker.setStatus(" 301 Moved Permanently");
-        if(location.data.find("root") != location.data.end())
-            LocationRoot = location.data["root"] + location.path;
-        else
-            LocationRoot = root + location.path;
+    if (send(client, response.c_str(), response.size(), 0) == -1) {
+        loadError(client, getPageDefault("500"), "500 Internal Server Error");
     }
 }
 
-void Server::LoadSpecifiedFile(int client, const string &path, const string &status) {
-	Stream stream("");
-	stream.loadFile(path);
-	contentMaker(client, status, "keep-alive", stream.getStream(), stream.streamSize());
+void Server::handleDelete(int client, Stream &stream, const string &fullPath, Location &location) {
+    struct stat mStat;
+    string file = root + master.getPath();
+
+    if (stat(file.c_str(), &mStat) != 0)
+        _statusCode = " 404 Not Found";
+    else if (access(file.c_str(), R_OK | W_OK) != 0)
+        _statusCode = " 403 Forbidden";
+    else if (remove(file.c_str()) != 0)
+        _statusCode = " 500 Internal Server Error";
+
+    stream.loadFile(getPageDefault(_statusCode.substr(2, 4)));
 }
 
-void Server::response(int client, string path, string protocol) {
-	int method = master.isMethod();
+
+
+void Server::handleGetPost(int client, string& path, Stream &stream)
+{   
+    static string LocationRoot;
     struct stat info;
-    size_t  pos = path.rfind(".");
-    _contentMaker.setStatus(" 200 OK");
-	Stream  stream(this);
     Location location;
     string fullPath;
-    static string LocationRoot;
+    size_t pos = path.rfind(".");
+
+    mimeMaker(path);
     defineLocationPath(location, path, LocationRoot);
     defineFullPath(fullPath, location, extractURL(path));
-    cout << location.path << endl;
-    if (transfer) {
-		if (method != DELETE && method != INVALID_REQUEST) {
-			mimeMaker(path);
-			if (pos == string::npos) {
-				if (maxBodySize < master.getFileLen() && master.getFileLen() > 0) {
-                    loadErrorPage(stream, "413");
-					_contentMaker.setStatus(" 413 Content Too Large");
-				}
-				else if(stat(fullPath.c_str(), &info) == 0)
-				{
-					if(location.data.find("index") != location.data.end())
-						loadIndexPage(stream, location);
-					else
-						loadDirectoryPage(stream, location);
-				}
-				else{
-					_contentMaker.setStatus(" 404 Not Found");
-					loadErrorPage(stream, "404");
-				}
-			}
-			else {
-				if (method == POST && maxBodySize > master.getFileLen()) {
-					_contentMaker.setStatus(" 413 Content Too Large");
-				}
-				else if ((pos = path.find(".")) != string::npos) {
-					if (path.find("?") != string::npos) {
-						if ((path.find(".php") != string::npos && path[pos + 4] != '?') ||
-							(path.find(".py") != string::npos && path[pos + 3])) {
-							path = "/404.html";
-                            _contentMaker.setStatus(" 404 Not Found");
-						}
-						else {
-							if (path.find(".php") != string::npos)
-								path = path.substr(0, pos + 4);
-							else if (path.find(".py") != string::npos)
-								path = path.substr(0, pos + 3);
-						}
-					} else {
-						if ((path.find(".php") != string::npos && path.length() > pos + 4) ||
-							(path.find(".py") != string::npos && path.length() > pos + 3)) {
-							path = "/404.html";
-							_contentMaker.setStatus(" 404 Not Found");
-						}
-					}
-				}
-                if(LocationRoot != "")
-                {
-                    cout << LocationRoot + path << endl;
-                    stream.loadFile(LocationRoot + path);
-                }
-                else
-                {
-                    cout << root + path << endl;
-                    stream.loadFile(root + path);
-                }
-			}
-		}
-		else if (method == DELETE) {
-			struct stat mStat;
-			string file = root + path;
-			if (!access(file.c_str(), F_OK) && !access(file.c_str(), R_OK | W_OK | X_OK)) {
-				if (!stat(file.c_str(), &mStat) && mStat.st_size > 0){
-					if (remove(file.c_str()) == -1) {
-						_contentMaker.setStatus(" 405 Method Not Allowed");
-                        loadErrorPage(stream, "405");
-					}
-				}
-			}
-			else {
-				_contentMaker.setStatus(" 403 Forbidden");
-				loadErrorPage(stream, "403");
-			}
-		}
-		else
-		{
-			_contentMaker.setStatus(" 405 Method Not Allowed");
-            loadErrorPage(stream, "405");
-		}
-	}
-	else {
-		_contentMaker.setStatus(" 500 Internal Server Error");
-		loadErrorPage(stream, "500");
-	}
-    _contentMaker = ContentMaker(client, protocol, "keep-alive", _contentMaker.getStatus(), stream.getStream(), stream.streamSize());
-	contentMaker(_contentMaker);
+    if(stat(fullPath.c_str(), &info) == 0)
+    {
+        if(pos != string::npos){
+            if(LocationRoot != "")
+                stream.loadFile(LocationRoot + path);
+            else
+                stream.loadFile(root + path);
+        }
+        else if(location.data.find("index") != location.data.end())
+            loadIndexPage(stream, location);
+        else if(S_ISDIR(info.st_mode))
+            loadDirectoryPage(client, stream, fullPath);
+    }
+    else{
+        _statusCode = " 404 Not Found";
+        stream.loadFile(getPageDefault("404"));
+    }
 }
 
-void    Server::requestTreat(int client, string data) {
-	(void)data;
-	response(client, master.getPath(), master.getType());
-	/* if (master.isMethod() == GET)
-		response(client, master.getPath(), master.getType());
-	else if (master.isMethod() == POST) {
-		response(client, master.getPath(), master.getType());
-	}
-	else if (master.isMethod() == DELETE) {
-		response(client, master.getPath(), master.getType());
-	} */
+void Server::contentMaker(int client, string protocol, string connection, string buffer)
+{
+    if(_statusCode[0] != ' ')
+        _statusCode = ' ' + _statusCode;
+    ostringstream responseStream;
+    responseStream << protocol + _statusCode << "\r\n"
+                   << "Connection: " << connection << "\r\n"
+                   << "Content-Type: text/html\r\n"
+                   << "Content-Length: " << buffer.size() << "\r\n\r\n"
+                   << buffer;
+
+    string response = responseStream.str();
+    send(client, response.c_str(), response.size(), 0);
+}
+
+void Server::response(int client, string path, string protocol){
+    static string LocationRoot;
+    struct stat info;
+    size_t pos = path.rfind(".");
+    Stream stream(this, path);
+    Location location;
+    string fullPath;
+    _statusCode = " 200 OK";
+
+    defineLocationPath(location, path, LocationRoot);
+    defineFullPath(fullPath, location, extractURL(path));
+    if(HandleErrors(client, protocol, stream) == false){
+        if(master.isMethod() == GET || master.isMethod() == POST)
+            handleGetPost(client, path, stream);
+        else
+            handleDelete(client, stream, fullPath, location);
+    }
+    contentMaker(client, protocol, "keep-alive", stream.getBufferString());
 }
 
 void Server::execute(int socket) {
@@ -506,7 +277,8 @@ void Server::execute(int socket) {
     if (client == -1)
         return ;
     fcntl(client, F_SETFL, O_NONBLOCK);
-    requestTreat(client, createPacket(client));
+    createPacket(client);
+	response(client, master.getPath(), master.getType());
     close(client);
 }
 

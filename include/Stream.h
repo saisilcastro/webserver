@@ -18,11 +18,14 @@ class Stream{
     void	*buffer;
     size_t	size;
     Server* ServerRef;
+    string  path;
+    int     client; 
+    string _bufferString;
 
 public:
     Stream(void);
     Stream(string file);
-    Stream(Server *server);
+    Stream(Server *server, string path);
     void    createStream(void *, size_t);
     void    setStream(void *, size_t);
     void	*getStream(void);
@@ -31,8 +34,12 @@ public:
     void	saveFile(string file);
     Stream & operator = (Stream &);
     ~Stream(void);
-    ContentMaker& getContentMaker();
-
+    char** generateEnv();
+    bool handleErrors(string file);
+    void handleFile(string& file);
+    void handleCGI(string& file);
+    string getQueryString();
+    string getBufferString() { return _bufferString; }    
 };
 
 #endif

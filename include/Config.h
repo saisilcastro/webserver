@@ -8,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include "unistd.h"
 
 using namespace std;
 
@@ -23,13 +24,15 @@ typedef struct ServerInfo{
     size_t              maxBodySize;
     map<string, string> error;
     vector<Location>    location;
+
+    ServerInfo() : name(""), root(""), port(""), maxBodySize(0) {}
 }ServerInfo;
 
 class Config{
     vector<ServerInfo> info;
     public:
         Config(void);
-        Config(char *file);
+        Config(const char *file);
         vector<ServerInfo> infoGet(void);
         string getName(int);
         void print(void);

@@ -4,13 +4,16 @@
 #include <sstream>
 #include <iostream>
 #include <cstdlib>
+#include <map>
 
 using namespace std;
 typedef enum{
     INVALID_REQUEST,
+    ENTITY_TOO_LARGE,
     GET,
     POST,
-    DELETE
+    DELETE,
+    INVALID_HOST
 }method_e;
 
 class Protocol {
@@ -23,6 +26,8 @@ class Protocol {
     string  file;
     size_t  length;
     size_t  header;
+    string contentBody;
+
 public:
     Protocol(void);
     Protocol(char *);
@@ -39,6 +44,8 @@ public:
     size_t      getHeaderLen(void);
     string      getHost(void);
     ~Protocol(void);
+
+    string     getContentBody(void) const { return contentBody; }
 };
 
 #endif

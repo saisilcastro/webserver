@@ -1,5 +1,14 @@
 #include "Config.h"
 
+
+bool skipLine(string line, size_t start, size_t end) {
+	if (start == string::npos || end == string::npos)
+		return true;
+	else if(line[start] == '#' || line[start] == '\n' || line[start] == '\0')
+		return true;
+	return false;
+}
+
 Config::Config(void) {}
 
 void locationPrint(vector<Location>::iterator local) {
@@ -9,10 +18,10 @@ void locationPrint(vector<Location>::iterator local) {
 }
 
 size_t bodySize(string size) {
-	int	iSize = std::atoi(size.c_str());
+	int	iSize = atoi(size.c_str());
 	
 	if (iSize == 0)
-		throw std::runtime_error("Invalid body size format, using default file .conf");
+		throw runtime_error("Invalid body size format, using default file .conf");
 	if (size.find_first_of("Gg") != string::npos)
         return (size_t)iSize * 1024 * 1024 * 1024;
     else if (size.find_first_of("Mm") != string::npos)
@@ -22,13 +31,15 @@ size_t bodySize(string size) {
     else if (size.find_first_not_of("0123456789") == string::npos)
         return (size_t)iSize;
 	else
-		throw std::runtime_error("Invalid body size, using default file .conf");
+		throw runtime_error("Invalid body size, using default file .conf");
 }
 
 static void extractInfo(string line, ServerInfo & one, Location & local, int bracket) {
-	std::string::size_type start = line.find_first_not_of(" \t\n\r\f\v");
-    std::string::size_type end = line.find_last_not_of(" \t\n\r\f\v");
+	string::size_type start = line.find_first_not_of(" \t\n\r\f\v");
+    string::size_type end = line.find_last_not_of(" \t\n\r\f\v");
 	string keyword[] = {"server_name ", "root ", "listen ", "max_body_size ", "error_page ", "location "};
+	if(skipLine(line, start, end))
+		return;
 
 	if (start != string::npos && end != string::npos) {
 		if (bracket == 2) {
@@ -67,6 +78,11 @@ static void extractInfo(string line, ServerInfo & one, Location & local, int bra
 				{
 					string name = line.substr(0, line.find_first_of(" \t\n\r\f\v"));
 					string value = line.substr(line.find_last_of(" \t\n\r\f\v"), line.substr(line.find_last_of(" \t\n\r\f\v")).find(";"));
+					if(!access(value.c_str(), F_OK))
+					{
+						cout << "Error page |" << value << "| not found! Please fix it.\n";
+						exit(1);
+					}
 					one.error.insert(make_pair(name, value));
 				}
 				if (keyword[i] == "location ")
@@ -79,7 +95,7 @@ static void extractInfo(string line, ServerInfo & one, Location & local, int bra
 	}	
 }
 
-Config::Config(char *file) {
+Config::Config(const char *file) {
 	ifstream 	in(file);
 	int		 	bracket = 0;
 	string	 	line;
@@ -87,7 +103,7 @@ Config::Config(char *file) {
 	Location 	local;
 
 	if (!in.is_open() || in.fail())
-		throw std::runtime_error("Error while trying to open file!");
+		throw runtime_error("Error while trying to open file!");
 	while (getline(in, line)) {
 		if (line.find("{") != string::npos)
 			bracket++;
@@ -96,12 +112,13 @@ Config::Config(char *file) {
 			bracket--;
 			if (bracket == 0) {
 				if(one.root.empty() || one.port.empty())
-					throw std::runtime_error("Invalid server configuration, using default file .conf");
+					throw runtime_error("Invalid server configuration, using default file .conf");
 				info.push_back(one);
 				one.name.clear();
                 one.root.clear();
                 one.port.clear();
                 one.location.clear();
+				one.maxBodySize = 0;
 			}
 		}
 	}
@@ -116,6 +133,7 @@ string Config::getName(int pos) {
 	int i = 0;
 	for (vector<ServerInfo>::iterator it = info.begin(); it != info.end(); ++it) {
 		if (i == pos) {
+			cout << it->name << endl;
 			return it->name;
 		}
 		i++;

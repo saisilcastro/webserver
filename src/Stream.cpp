@@ -10,8 +10,9 @@ Stream::Stream(string file) : buffer(NULL), size(0) {
         saveFile(file);
 }
 
-Stream::Stream(Server *server) : buffer(NULL), size(0) {
+Stream::Stream(Server *server, string path) : buffer(NULL), _bufferString(""), size(0) {
     ServerRef = server;
+    this->path = path;
 }
 
 void    Stream::createStream(void *data, size_t len) {
@@ -31,132 +32,195 @@ int		Stream::streamSize(void) {
     return size;
 }
 
-ContentMaker& Stream::getContentMaker() {
-    return ServerRef->getContentMaker();
-}
+bool Stream::handleErrors(string file){
+    trim(file);
+    string error;
 
-void Stream::loadFile(std::string file) {
-    if (access(file.c_str(), F_OK) == -1) {
-        ServerRef->loadErrorPage(*this, "404");
-        ServerRef->getContentMaker().setStatus(" 404 Not Found");
-        return;
+    if (access(file.c_str(), F_OK) == -1) 
+        error = " 404 Not Found";
+    else if (access(file.c_str(), R_OK) == -1)
+        error = " 403 Forbidden";
+    else if(access(file.c_str(), X_OK) == -1 && (file.find(".php") != string::npos || file.find(".py") != string::npos))
+        error = " 403 Forbidden";
+
+    if(!error.empty())
+    {
+        cout << file << endl;
+        cout << "chamado aqui: " << error << endl;
+        cout << "file: " << file << endl;
     }
 
-    if (file.find(".php") == std::string::npos && file.find(".py") == std::string::npos) {
-        std::ifstream in(file.c_str(), std::ios::binary | std::ios::ate);
+    if (!error.empty()) {
+        loadFile(ServerRef->getPageDefault(error.substr(1, 3)));
+        ServerRef->setStatusCode(error);
+        return true;
+    }
+    return false;
+}
 
-        if (!in.is_open() || in.bad() || in.fail()) {
-            return;
-        }
 
-        size = in.tellg();
-        in.seekg(0, std::ios::beg);
-        buffer = new char[size];
-        if (!buffer)
-            return;
+void Stream::handleFile(string& file){
+    trim(file);
+    ifstream infile(file.c_str());
+    if(!infile.is_open())
+    {
+        cerr << "Could not open file\n";
+        throw(string(" 500 Internal Server Error"));
+    }
 
-        in.read(reinterpret_cast<char *>(buffer), size);
-        in.close();
-    } else {
-        int fd[2];
+    _bufferString = string((istreambuf_iterator<char>(infile)), istreambuf_iterator<char>());
+    if (_bufferString.empty())
+    {
+        cerr << "Could not read file\n";
+        throw(string(" 500 Internal Server Error"));
+    }
+}
 
-        if (pipe(fd) == -1)
-            throw std::runtime_error("pipe() failed!");
+string Stream::getQueryString(){
+    if(path.find("?") != string::npos){
+        size_t pos = path.find("?");
+        return path.substr(pos + 1);
+    }
+    return "";
+}
 
-        pid_t pid = fork();
-        if (pid == -1)
-            throw std::runtime_error("fork() failed!");
-        else if (pid == 0) { // processo filho
-            close(fd[0]);
-            dup2(fd[1], STDOUT_FILENO);
-            dup2(fd[1], STDERR_FILENO); // Captura stderr também
-            close(fd[1]);
+void Stream::handleCGI(string& file) {
+    int fd[2];
+    if (pipe(fd) == -1) {
+        perror("Pipe creation failed");
+        throw(string("500 Internal Server Error"));
+    }
 
-            if (file.find(".php") != std::string::npos) {
-                const char* argv[] = {"php", file.c_str(), NULL};
-                const char* envp[] = {NULL}; // Usa o ambiente atual
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("Fork failed");
+        throw(string("500 Internal Server Error"));
+    }
 
-                execve("/usr/bin/php", const_cast<char* const*>(argv), const_cast<char* const*>(envp));
-            } else if (file.find(".py") != std::string::npos) {
-                const char* argv[] = {"python3", file.c_str(), NULL};
-                const char* envp[] = {NULL}; // Usa o ambiente atual
+    else if (pid == 0) {
+        close(fd[0]);
+        dup2(fd[1], STDOUT_FILENO);
+        dup2(fd[1], STDERR_FILENO);
+        close(fd[1]);
 
-                execve("/usr/bin/python3", const_cast<char* const*>(argv), const_cast<char* const*>(envp));
-            }
-            perror("Execução do script falhou! Certifique-se de que você tem PHP ou Python instalado.");
+        string body = ServerRef->getContentBody();
+        int pipe_stdin[2];
+        if (pipe(pipe_stdin) == -1) {
+            perror("Pipe creation for STDIN failed");
             exit(EXIT_FAILURE);
-        } else { // processo pai
-            close(fd[1]);
-            char data[128];
-            std::string result;
-            ssize_t count;
-
-            // Controle de timeout
-            int timeout_seconds = 5; // Define o timeout desejado
-            time_t start_time = time(NULL);
-            bool timeout_reached = false;
-
-            while (true) {
-                // Verifica se o processo filho terminou
-                int status;
-                pid_t wait_result = waitpid(pid, &status, WNOHANG);
-
-                if (wait_result == 0) { // O processo filho ainda está em execução
-                    if (difftime(time(NULL), start_time) >= timeout_seconds) {
-                        // Timeout alcançado, mata o processo filho
-                        kill(pid, SIGKILL);
-                        std::cerr << "O script demorou demais e foi terminado." << std::endl;
-                        timeout_reached = true;
-                        break;
-                    }
-                } else if (wait_result == -1) {
-                    // Erro ao esperar pelo processo
-                    perror("waitpid falhou");
-                    break;
-                } else { // O processo filho terminou
-                    if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-                        std::cerr << "Execução do script falhou!" << std::endl;
-                    }
-                    break;
-                }
-
-                // Lê dados do pipe
-                count = read(fd[0], data, sizeof(data));
-                if (count > 0) {
-                    result.append(data, count);
-                } else if (count == -1) {
-                    perror("Erro ao ler do pipe");
-                    break; // Lidar com erro de leitura
-                } else if (count == 0) {
-                    // EOF alcançado, sai do loop
-                    break;
-                }
-            }
-
-            close(fd[0]); // Fecha a extremidade de leitura
-
-            if (timeout_reached) {
-                ServerRef->loadErrorPage(*this, "504");
-                ServerRef->getContentMaker().setStatus(" 504 Gateway Timeout");
-                return;
-            }
-
-            // Após a execução, aloca o buffer
-            size = result.size();
-            buffer = new char[size];
-            if (!buffer)
-                throw std::runtime_error("Falha na alocação do buffer!");
-
-            memcpy(buffer, result.c_str(), size);
         }
+
+        if (fork() == 0) {
+            close(pipe_stdin[0]);
+            write(pipe_stdin[1], body.c_str(), body.size());
+            close(pipe_stdin[1]);
+            exit(0);
+        } else {
+            close(pipe_stdin[1]);
+            dup2(pipe_stdin[0], STDIN_FILENO);
+            close(pipe_stdin[0]);
+        }
+
+        char **args = new char*[3];
+        if (file.find(".php") != string::npos) {
+            args[0] = strdup("/usr/bin/php");
+            args[1] = strdup(file.c_str());
+            args[2] = NULL;
+        } else if (file.find(".py") != string::npos) {
+            args[0] = strdup("/usr/bin/python3");
+            args[1] = strdup(file.c_str());
+            args[2] = NULL;
+        } else {
+            cerr << "Unsupported script type" << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        string request_method = std::string("REQUEST_METHOD=") + (ServerRef->getMethod() == GET ? "GET" : "POST");  
+        string query_string = ServerRef->getMethod() == GET ? "QUERY_STRING=" + getQueryString() : "";
+        string content_length = ServerRef->getMethod() == POST ? "CONTENT_LENGTH=" + std::to_string(body.size()) : "";
+
+        char* envp[] = {
+            (char*)request_method.c_str(),
+            (char*)(ServerRef->getMethod() == GET ? query_string.c_str() : content_length.c_str()),
+            NULL
+        };
+
+        execve(args[0], args, envp);
+
+        free(args[0]);
+        free(args[1]);
+        delete[] args;
+
+        perror("Script execution failed");
+        exit(EXIT_FAILURE);
+    }
+
+    else {
+        close(fd[1]);
+        char data[128];
+        _bufferString.clear(); // Limpa o conteúdo anterior
+        ssize_t count;
+
+        int timeout_seconds = 5;
+        time_t start_time = time(NULL);
+
+        while (true) {
+            int status;
+            pid_t wait_result = waitpid(pid, &status, WNOHANG);
+
+            if (wait_result == 0) {
+                if (difftime(time(NULL), start_time) >= timeout_seconds) {
+                    kill(pid, SIGKILL);
+                    cerr << "The script took too long and was terminated." << endl;
+                    throw(string("504 Gateway Timeout"));
+                }
+            } else if (wait_result == -1) {
+                perror("waitpid failed");
+                throw(string("500 Internal Server Error"));
+            } else {
+                if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+                    cerr << "Script execution failed!" << endl;
+                    throw(string("500 Internal Server Error"));
+                }
+                break;
+            }
+
+            count = read(fd[0], data, sizeof(data));
+            if (count > 0) {
+                _bufferString.append(data, count);
+            } else if (count == -1) {
+                perror("Error reading from pipe");
+                throw(string("500 Internal Server Error"));
+            } else if (count == 0) {
+                break;
+            }
+        }
+
+        close(fd[0]);
     }
 }
 
+
+void Stream::loadFile(string file) {
+    _bufferString.clear();
+    try{
+        if(!handleErrors(file)){
+            if (file.find(".php") == string::npos && file.find(".py") == string::npos) {
+                handleFile(file);
+            } else {
+                handleCGI(file);
+            }
+        }
+    } catch (string& e) {
+        loadFile(ServerRef->getPageDefault(e));
+        ServerRef->setStatusCode(e);
+    }
+}
 
 void	Stream::saveFile(string file) {
     if (file.empty())
         return;
-    ofstream out(file.c_str(), std::ofstream::out | std::ofstream::binary);
+    ofstream out(file.c_str(), ofstream::out | ofstream::binary);
 
     if (!out.is_open() || out.bad() || out.fail())
         return;
