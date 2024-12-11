@@ -60,4 +60,4 @@ fclean: clean
 re: fclean all
 
 gdb: all
-	gdb --tui --args ./$(NAME) twoServers.conf
+	gdb --tui --args ./$(NAME) Configs/twoServers.conf

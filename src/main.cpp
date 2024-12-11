@@ -7,16 +7,24 @@ void handleSignal(int signal) {
         exit(0);
     }
 }
-void webserver(const char *file)
-{
+
+void webserver(const char *file) {
+    vector<string> ports;
     Config config(file);
-    size_t  max = config.infoGet().size();
+    size_t max = config.infoGet().size();
     vector<ServerInfo> info = config.infoGet();
     Server server[max];
     max = 0;
+    set<string> usedPorts;
+    for (vector<ServerInfo>::iterator it = info.begin(); it != info.end(); ++it) {
+        string port = it->port;
 
-    for (vector<ServerInfo>::iterator it = info.begin(); it != info.end(); ++it)
-        server[max++] = Server(it->name, it->port, it->root, it->error, it->location, it->maxBodySize);
+        if (usedPorts.find(port) == usedPorts.end()) {
+            usedPorts.insert(port);
+            server[max++] = Server(it->name, it->port, it->root, it->error, it->location, it->maxBodySize);
+        } else
+            cout << "Warning: Server for port " << port << " already exists. Ignoring duplicate configuration." << endl;
+    }
 
     for (size_t i = 0; i < max; i++)
         Run(server, max);
@@ -37,7 +45,6 @@ int main(int argc, char **argv) {
             webserver("Configs/default.conf");
     }
     catch(const exception &e) {
-        cerr << e.what() << endl;
         webserver("Configs/default.conf");
     }
     return (0);

@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <dirent.h>
 #include <sys/types.h>
+#include <set>
 
 class Stream;
 
@@ -108,6 +109,7 @@ public:
     string getStatusCode() const { return _statusCode; }
     void setStatusCode(const string &statusCode) { _statusCode = statusCode; }
     void contentMaker(int client, string protocol, string connection, string buffer);
+
 protected:
     string host;
     string port;
@@ -131,4 +133,7 @@ std::string ft_strip(const std::string &s);
 void Run(Server *server, int max);
 void handleSignal(int signal);
 void trim(string &str);
+string returnTrim(const string& str);
+void trim(string& str);
+void trim(char str[]);
 #endif

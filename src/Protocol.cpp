@@ -15,6 +15,7 @@ void    Protocol::reset(void) {
     file = "";
     length = 0;
     header = 0;
+    contentBody = "";
 }
 
 string inside(string text, string sub, string stop) {
@@ -27,27 +28,38 @@ string inside(string text, string sub, string stop) {
     return "";
 }
 
-void Protocol::extract(char *data) {
-    contentBody = "";
-    istringstream parse(data);
-    size_t pos;
-    if ((pos = parse.str().find("Host: ")) != string::npos)
-        tmpHost = parse.str().substr(pos + 6, parse.str().find("\n", pos) - pos - 6);
 
+bool    Protocol::extract(const char *data){
+    istringstream parse(data);
+    size_t  pos;
+    if((pos = parse.str().find("Host: ")) != string::npos)
+        tmpHost = parse.str().substr(pos + 6, parse.str().find("\n", pos) - pos - 6);
     pos = tmpHost.find(":");
-    if (pos != string::npos)
+   if(pos != string::npos)
         tmpHost = tmpHost.substr(0, pos);
 
     parse >> method >> path >> type;
     if ((pos = parse.str().find("\r\n\r\n")) != string::npos) {
-        header = parse.str().substr(pos + 4).find("\r\n\r\n") + pos + 8;
-        contentBody = parse.str().substr(pos + 4);
+        size_t next_pos = parse.str().find("\r\n\r\n", pos + 4);
+        if (next_pos != string::npos) {
+            header = next_pos + 4;
+        } else {
+            header = pos + 4;
+        }
     }
     connection = inside(parse.str(), "Connection: ", "\n");
-    boundary = inside(parse.str(), "boundary=", "\r\n");
-    file = inside(parse.str(), "filename=\"", "\"");
-    length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
+    if(boundary == "")
+        boundary = inside(parse.str(), "boundary=", "\r\n");
+    if(file == "")
+        file = inside(parse.str(), "filename=\"","\"");
+    if(length == 0)
+        length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
+
+    if(boundary == "" || file == "" || length == 0)
+        return false;
+    return true;
 }
+
 
 void    Protocol::setMethod(string value) {
     method = value;

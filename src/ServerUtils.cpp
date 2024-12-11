@@ -90,12 +90,19 @@ Server::Server(string _host, string _port, string _root, map<string, string> _er
     errorPages["403"] = "errors/default/403.html";
 	errorPages["404"] = "errors/default/404.html";
 	errorPages["405"] = "errors/default/405.html";
+    errorPages["409"] = "errors/default/409.html";
 	errorPages["413"] = "errors/default/413.html";
 	errorPages["500"] = "errors/default/500.html";
 	errorPages["504"] = "errors/default/504.html";
 
     if(maxBodySize == 0)
         maxBodySize = numeric_limits<size_t>::max();
+    if (root.substr(0, 2) != "./") {
+        if (root[0] == '/')
+            root = '.' + root;
+        else
+            root = "./" + root;
+    }
 
     if(root.empty() || access(root.c_str(), F_OK | R_OK) == -1){
         throw runtime_error("Invalid root directory, using server default.");
@@ -142,6 +149,27 @@ vector<Location>::const_iterator Server::getEnd() const {
     return location.end();
 }
 
+string returnTrim(const string& str) {
+    size_t start = str.find_first_not_of(" \t\n\r\f\v");
+    if (start == string::npos) {
+        return "";
+    }
+    size_t end = str.find_last_not_of(" \t\n\r\f\v");
+    return str.substr(start, end - start + 1);
+}
+
+void trim(char str[]) {
+    size_t start = 0;
+    while (str[start] == ' ' || str[start] == '\t' || str[start] == '\n' || str[start] == '\r' || str[start] == '\f' || str[start] == '\v') {
+        start++;
+    }
+    size_t end = strlen(str) - 1;
+    while (str[end] == ' ' || str[end] == '\t' || str[end] == '\n' || str[end] == '\r' || str[end] == '\f' || str[end] == '\v') {
+        end--;
+    }
+    str[end + 1] = '\0';
+    memmove(str, str + start, end - start + 1);
+}
 
 void trim(string& str) {
     size_t start = str.find_first_not_of(" \t\n\r\f\v");
@@ -215,8 +243,10 @@ string Server::getErrorPage(const string& errorCode) {
 
 string extractURL(string &path)
 {
-    if(path.size() == 1 || find(path.begin(), path.end(), '?') != path.end())
+    if(path.size() == 1)
         return("");
+    if(find(path.begin(), path.end(), '?') != path.end())
+        path = path.substr(0, path.find('?'));
     for(size_t i = 1; i < path.length(); i++)
     {
         if(path[i] == '/')
@@ -373,7 +403,8 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 
 string Server::getPageDefault(const string &errorCode) {
     string page = error[errorCode];
-    if(!page.empty() && access(page.c_str(), F_OK))
+    cout << page << endl;
+    if(!page.empty() && access(page.c_str(), F_OK | R_OK) != -1)
         return page;
 
     map<string, string>::iterator it = this->errorPages.find(errorCode);
@@ -456,6 +487,8 @@ void Server::loadDirectoryPage(int client, Stream &stream, const string &fullPat
 void Server::defineFullPath(string &fullPath, Location &location, string url) {
     if(location.data.find("root") != location.data.end())
         fullPath = location.data["root"];
+    else if(_statusCode == " 301 Moved Permanently")
+        fullPath = root + returnTrim(location.path);
     else
         fullPath = root + url;
 }
@@ -467,6 +500,13 @@ void Server::defineLocationPath(Location &location, string path, string &Locatio
     else
         location = findLocationPath(url);
 
+    while(location.data.find("index") == location.data.end() && location.data.find("return") != location.data.end())
+    {
+        _statusCode = " 301 Moved Permanently";
+        cout << "Redirecting to: " << returnTrim(location.data["return"]) << endl;
+        location = findLocationPath(returnTrim(location.data["return"]));
+    }
+
     if(location.data.find("root") != location.data.end())
         LocationRoot = location.data["root"];
     else if(!location.path.empty() && location.data.find("root") == location.data.end())
@@ -474,22 +514,17 @@ void Server::defineLocationPath(Location &location, string path, string &Locatio
 }
 
 bool Server::HandleErrors(int client, string protocol, Stream& stream) {
-    if(!transfer){
-        stream.loadFile(getPageDefault("500"));
-        _statusCode = " 500 Internal Server Error";
-        return(true);
-    }
     struct ErrorCheck {
         bool condition;
         const char* page;
         const char* message;
     };
-
     ErrorCheck errors[] = {
         {protocol != "HTTP/1.1", "400", " 400 Bad Request"},
         {master.isMethod() == INVALID_REQUEST, "405", " 405 Method Not Allowed"},
         {master.isMethod() == ENTITY_TOO_LARGE, "413", " 413 Request Entity Too Large"},
-        {master.isMethod() == INVALID_HOST, "400", " 400 Bad Request"}
+        {master.isMethod() == INVALID_HOST, "400", " 400 Bad Request"},
+        {master.isMethod() == CONFLICT, "409", " 409 Conflict"}
     };
 
     for (long unsigned int i = 0; i < sizeof(errors) / sizeof(errors[0]); ++i) {
