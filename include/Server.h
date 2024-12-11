@@ -78,7 +78,7 @@ public:
     // void loadErrorPage(Stream &stream, const string &errorCode);
     void loadDirectoryPage(int client, Stream &stream, const std::string &fullPath);
     void execute(int socket);
-    void checkAcceptedMethod(Protocol &master);
+    bool checkAcceptedMethod(Protocol &master);
     void defineFullPath(string &fullPath, Location &location, string url);
     void defineLocationPath(Location &location, string path, string &LocationRoot);
     void LoadSpecifiedFile(int client, const string &path, const string &status);

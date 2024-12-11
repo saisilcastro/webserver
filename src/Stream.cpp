@@ -43,13 +43,6 @@ bool Stream::handleErrors(string file){
     else if(access(file.c_str(), X_OK) == -1 && (file.find(".php") != string::npos || file.find(".py") != string::npos))
         error = " 403 Forbidden";
 
-    if(!error.empty())
-    {
-        cout << file << endl;
-        cout << "chamado aqui: " << error << endl;
-        cout << "file: " << file << endl;
-    }
-
     if (!error.empty()) {
         loadFile(ServerRef->getPageDefault(error.substr(1, 3)));
         ServerRef->setStatusCode(error);

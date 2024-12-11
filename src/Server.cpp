@@ -11,11 +11,19 @@
 
 using namespace std;
 
+void handleEntityTooLarge(Protocol& master, string& path){
+    if(master.isMethod() == ENTITY_TOO_LARGE){
+        remove(path.c_str());
+        usleep(master.getFileLen() / 1000);
+    }
+}
+
 string Server::createPacket(int client) {
     fd_set          read_fd;
     struct timeval  timeout;
     bool            packetCreated = false;
     bool            creating = true;
+    bool            receivingFile = false;
     char            buffer[65535];
     size_t          currentSize = 0;
     size_t          writtenByte = 0;
@@ -30,7 +38,10 @@ string Server::createPacket(int client) {
     while (creating) {
         FD_ZERO(&read_fd);
         FD_SET(client, &read_fd);
-
+        if(receivingFile == true){
+            timeout.tv_sec = 0;
+            timeout.tv_usec = master.getFileLen() / 1000;
+        }
         timeout.tv_sec = 0;
         timeout.tv_usec = 100000;
 
@@ -42,34 +53,36 @@ string Server::createPacket(int client) {
             break;
         } else {
             if (FD_ISSET(client, &read_fd)) {
+                bzero(buffer, sizeof(buffer));
                 piece = recv(client, buffer, sizeof(buffer), 0);
-                cout << "Tamanho Pedaço: " << piece << endl;
 
                 if (piece > 0) {
                     currentSize += piece;
 
                     if (!packetCreated) {
                         if (master.extract(buffer) == false) {
+                            if(checkAcceptedMethod(master) == true)
+                                break;
                             tmpHeader.insert(tmpHeader.end(), buffer, buffer + piece);
                             if (master.extract(&tmpHeader[0]) == false) {
                                 continue;
                             } else {
+                                packetCreated = true;
                                 memcpy(buffer, &tmpHeader[0], tmpHeader.size());
                                 tmpHeader.clear();
-                                packetCreated = true;
                             }
                         } else {
                             packetCreated = true;
                         }
-                        if (master.getFileLen() && master.getFileLen() <= maxBodySize && master.getFileName() != "") {
+                        if (master.getFileName() != "") {
                             path = "upload/" + master.getFileName();
-
                             if (master.getFileName() != "") {
                                 out.open(path.c_str(), ios::out | ios::binary);
                             }
                             if (!out.is_open())
                                 continue;
                             offset = (size_t)master.getHeaderLen();
+                            receivingFile = true;
                         }
                     }
 
@@ -84,13 +97,11 @@ string Server::createPacket(int client) {
                         if (sub) {
                             dataLen -= master.getBoundary().length() + 8;
                         }
-                        cout << "DataLen: " << dataLen << " piece: " << piece << " offset: " << offset;
-                        cout << " writtenByte: " << writtenByte << " remainingLen: " << remainingLen;
-                        cout << " master.getBoundary(): " << master.getBoundary().length() + 8 << endl;
                         out.write(buffer + offset, dataLen);
                         writtenByte += dataLen;
 
                         if (writtenByte > maxBodySize) {
+                            master.setMethod("ENTITY_TOO_LARGE");
                             break;
                         }
 
@@ -114,18 +125,10 @@ string Server::createPacket(int client) {
             }
         }
     }
-
     out.close();
-    // if (!transfer) {
-    //     remove(path.c_str());
-    //     cout << "could not transfer " << path << endl;
-    // }
-
+    handleEntityTooLarge(master, path);
     return "";
 }
-
-
-
 
 
 void Server::loadError(int client, string filePath, const string& errorCode)

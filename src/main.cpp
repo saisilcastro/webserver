@@ -31,7 +31,7 @@ void webserver(const char *file) {
 }
 
 int main(int argc, char **argv) {
-    signal(SIGINT, handleSignal);  // Ctrl+C Signal
+    signal(SIGINT, handleSignal);
     if(argc != 1 && argc != 2)
     {
         cout << "Usage: ./webserv [config_file]" << endl;

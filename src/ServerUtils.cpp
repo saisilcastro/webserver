@@ -328,7 +328,7 @@ vector<string> split(string str, string sep) {
 	return result;
 }
 
-void Server::checkAcceptedMethod(Protocol &master) {
+bool Server::checkAcceptedMethod(Protocol &master) {
     static vector<string> methods;
     Location local = findLocationPath(master.getPath());
 
@@ -351,6 +351,13 @@ void Server::checkAcceptedMethod(Protocol &master) {
     if (find(methods.begin(), methods.end(), methodStr) == methods.end()) {
         master.setMethod("INVALID");
     }
+    
+    if(host != "" && master.getHost() != "localhost" && host != master.getHost())
+        master.setMethod("CONFLICT");
+
+    if(master.isMethod() != GET && master.isMethod() != POST && master.isMethod() != DELETE)
+        return true;
+    return false;
 }
 
 string  Server::mimeMaker(string path) {
@@ -519,6 +526,7 @@ bool Server::HandleErrors(int client, string protocol, Stream& stream) {
         const char* page;
         const char* message;
     };
+    cout << protocol << endl;
     ErrorCheck errors[] = {
         {protocol != "HTTP/1.1", "400", " 400 Bad Request"},
         {master.isMethod() == INVALID_REQUEST, "405", " 405 Method Not Allowed"},
