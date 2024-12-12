@@ -42,6 +42,7 @@ string Server::createPacket(int client) {
             break;
         } else {
             if (FD_ISSET(client, &read_fd)) {
+                bzero(buffer, sizeof(buffer));
                 piece = recv(client, buffer, sizeof(buffer), 0);
                 cout << "Tamanho Pedaço: " << piece << endl;
 
