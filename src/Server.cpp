@@ -35,14 +35,17 @@ string Server::createPacket(int client) {
         timeout.tv_usec = 100000;
 
         int receiving = select(client + 1, &read_fd, NULL, NULL, &timeout);
+        cout << "Receiving: " << receiving << endl;
         if (receiving < 0) {
             creating = false;
             cout << "Error on select\n";
         } else if (receiving == 0) {
+            cout << "entrou\n";
             break;
         } else {
+            cout << "entrou 2\n";
             if (FD_ISSET(client, &read_fd)) {
-                bzero(buffer, sizeof(buffer));
+                memset(buffer, 0, sizeof(buffer));
                 piece = recv(client, buffer, sizeof(buffer), 0);
                 cout << "Tamanho Pedaço: " << piece << endl;
 

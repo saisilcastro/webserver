@@ -46,17 +46,16 @@ bool    Protocol::extract(const char *data){
         } else {
             header = pos + 4;
         }
+        contentBody = parse.str().substr(header);
     }
     connection = inside(parse.str(), "Connection: ", "\n");
-    if(boundary == "")
-        boundary = inside(parse.str(), "boundary=", "\r\n");
-    if(file == "")
-        file = inside(parse.str(), "filename=\"","\"");
-    if(length == 0)
-        length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
+    boundary = inside(parse.str(), "boundary=", "\r\n");
+    file = inside(parse.str(), "filename=\"","\"");
+    length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
 
-    if(boundary == "" || file == "" || length == 0)
-        return false;
+    // cout << "saiu\n";
+    // if(boundary == "" || file == "" || length == 0)
+        // return false;
     return true;
 }
 
