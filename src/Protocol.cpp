@@ -30,6 +30,9 @@ string inside(string text, string sub, string stop) {
 
 
 bool    Protocol::extract(const char *data){
+    static int i = 0;
+    i++;
+    cout << "Extracting: " << i << endl;
     istringstream parse(data);
     size_t  pos;
     if((pos = parse.str().find("Host: ")) != string::npos)
@@ -53,9 +56,8 @@ bool    Protocol::extract(const char *data){
     file = inside(parse.str(), "filename=\"","\"");
     length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
 
-    // cout << "saiu\n";
-    // if(boundary == "" || file == "" || length == 0)
-        // return false;
+    if(boundary == "" || file == "" || length == 0)
+        return false;
     return true;
 }
 
@@ -75,6 +77,13 @@ method_e    Protocol::isMethod(void) {
         return ENTITY_TOO_LARGE;
     else if(method == "INVALID_HOST")
         return INVALID_HOST;
+    else if(method == "INTERNAL_SERVER_ERROR")
+        return INTERNAL_SERVER_ERROR;
+    else if(method == "CONFLICT")
+        return CONFLICT;
+    else if(method == "TIMEOUT")
+        return TIMEOUT;
+    else
     return INVALID_REQUEST;
 }
 
@@ -111,3 +120,8 @@ size_t  Protocol::getHeaderLen(void) {
 }
 
 Protocol::~Protocol(){}
+
+ostream &operator<<(ostream &out, const Protocol &protocol){
+    out << "Method: " << protocol.method << endl;
+    return out;
+}

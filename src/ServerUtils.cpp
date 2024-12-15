@@ -524,7 +524,9 @@ bool Server::HandleErrors(int client, string protocol, Stream& stream) {
         {master.isMethod() == INVALID_REQUEST, "405", " 405 Method Not Allowed"},
         {master.isMethod() == ENTITY_TOO_LARGE, "413", " 413 Request Entity Too Large"},
         {master.isMethod() == INVALID_HOST, "400", " 400 Bad Request"},
-        {master.isMethod() == CONFLICT, "409", " 409 Conflict"}
+        {master.isMethod() == CONFLICT, "409", " 409 Conflict"},
+        {master.isMethod() == INTERNAL_SERVER_ERROR, "500", " 500 Internal Server Error"},
+        {master.isMethod() == TIMEOUT, "504", " 504 Gateway Timeout"}
     };
 
     for (long unsigned int i = 0; i < sizeof(errors) / sizeof(errors[0]); ++i) {
