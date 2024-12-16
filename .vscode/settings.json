@@ -60,6 +60,7 @@
     "stdexcept": "cpp",
     "sstream": "cpp",
     "iostream": "cpp",
-    "ostream": "cpp"
+    "ostream": "cpp",
+    "cstdlib": "cpp"
   }
 }

@@ -26,8 +26,6 @@ void Server::checkServerName(Protocol &master){
     }
 }
 
-// fazer a lógica da pasta que não existe, mas primeiro focar no timeout.
-
 string Server::createPacket(int client) {
     fd_set read_fd, write_fd;
     struct timeval timeout;
@@ -57,7 +55,7 @@ string Server::createPacket(int client) {
             FD_SET(client, &write_fd);
         }
 
-      if (!packetCreated || maxBodySize < master.getFileLen()) {
+      if (!packetCreated) {
 			timeout.tv_sec = 10;
 			timeout.tv_usec = 0;
 		}
@@ -149,10 +147,16 @@ string Server::createPacket(int client) {
                 readyToWrite = true;
             } else {
                 setError("INTERNAL_SERVER_ERROR", "Error during recv", readyToWrite);
+                break;
             }
         }
 
         if (readyToWrite && FD_ISSET(client, &write_fd)) {
+            if(master.isMethod() == POST && !receivingPost && master.getContentBody().length() > maxBodySize){
+               master.setMethod("ENTITY_TOO_LARGE");
+               cerr << RED << "Entity too large" << RESET << endl;
+            }
+
             out.close();
             if(master.isMethod() == ENTITY_TOO_LARGE){
                 remove(path.c_str());

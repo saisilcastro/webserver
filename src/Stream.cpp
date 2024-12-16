@@ -222,7 +222,7 @@ void Stream::loadFile(string file) {
     } catch (string& e) {
         loadFile(ServerRef->getPageDefault(e.substr(1, 3)));
         ServerRef->setStatusCode(e);
-    }
+    }   
 }
 
 void	Stream::saveFile(string file) {

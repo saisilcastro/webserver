@@ -30,6 +30,7 @@ string inside(string text, string sub, string stop) {
 
 
 bool    Protocol::extract(const char *data){
+    cout << GREEN << "Data: " << data << RESET << endl;
     istringstream parse(data);
     size_t  pos;
     if((pos = parse.str().find("Host: ")) != string::npos)
@@ -46,6 +47,7 @@ bool    Protocol::extract(const char *data){
         } else {
             header = pos + 4;
         }
+        contentBody = parse.str().substr(header);
     }
     connection = inside(parse.str(), "Connection: ", "\n");
     if(boundary == "")
