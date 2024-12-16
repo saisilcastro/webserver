@@ -16,8 +16,6 @@ typedef enum {
     DELETE,
     INVALID_HOST,
     CONFLICT,
-    INTERNAL_SERVER_ERROR,
-    TIMEOUT
 } method_e;
 
 class Protocol {
@@ -49,6 +47,8 @@ public:
     string      getHost(void);
     ~Protocol(void);
     string      getContentBody(void) const { return contentBody; }
+
+    // Declaração do operador friend
     friend ostream &operator<<(ostream &os, const Protocol &protocol);
 };
 
