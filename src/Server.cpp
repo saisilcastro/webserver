@@ -12,7 +12,7 @@
 using namespace std;
 
 void Server::setError(const string& error, const string& msg, bool& readyToWrite){
-    cerr << msg << endl;
+    cerr << RED << msg << RESET << endl;
     master.setMethod(error);
     readyToWrite = true;
 }
@@ -67,7 +67,6 @@ string Server::createPacket(int client) {
 		}
 
         int ready = select(client + 1, &read_fd, &write_fd, NULL, &timeout);
-        cout << "Select returned " << ready << endl;
         if (ready < 0) {
             setError("INTERNAL_SERVER_ERROR", "Error during select", readyToWrite);
         } else if (ready == 0) {
@@ -76,10 +75,8 @@ string Server::createPacket(int client) {
         }
 
         if (!readyToWrite && FD_ISSET(client, &read_fd)) {
-            cout << "entrou\n";
             memset(buffer, 0, sizeof(buffer));
             piece = recv(client, buffer, sizeof(buffer), 0);
-            cout << "Piece : " << piece << endl;
             if (piece > 0) {
                 currentSize += piece;
                 if (!createFile) {
@@ -89,6 +86,12 @@ string Server::createPacket(int client) {
                         if (!master.extract(&tmpHeader[0])) {
                             continue;
                         } else {
+                            checkAcceptedMethod(master);
+                            checkServerName(master);
+                            if(master.isMethod() != GET && master.isMethod() != POST && master.isMethod() != DELETE && !readyToWrite){
+                                readyToWrite = true;
+                                continue;
+                            }
                             memcpy(buffer, &tmpHeader[0], tmpHeader.size());
                             tmpHeader.clear();
                             createFile = true;
@@ -108,7 +111,7 @@ string Server::createPacket(int client) {
                             receivingPost = true;
                         }
                         if (!out.is_open()) {
-                            cerr << "Failed to open file: " << path << endl;
+                            cerr << RED << "Failed to open file: " << path << RESET << endl;
                             continue;
                         }
                         offset = static_cast<size_t>(master.getHeaderLen());
@@ -199,8 +202,12 @@ void Server::loadError(int client, string filePath, const string& errorCode)
     
     string response = responseStream.str();
 
-    if (send(client, response.c_str(), response.size(), 0) == -1) {
-        loadError(client, getPageDefault("500"), "500 Internal Server Error");
+    ssize_t send_return = send(client, response.c_str(), response.size(), 0);
+    if (send_return == -1){
+        cerr << RED << "Error sending response" << RESET << endl;
+    }
+    else if(send_return == 0){
+        cerr << RED << "Connection closed" << RESET << endl;
     }
 }
 
@@ -260,7 +267,13 @@ void Server::contentMaker(int client, string protocol, string connection, string
                    << buffer;
 
     string response = responseStream.str();
-    send(client, response.c_str(), response.size(), 0);
+    ssize_t send_return = send(client, response.c_str(), response.size(), 0);
+    if (send_return == -1){
+        cerr << RED << "Error sending response" << RESET << endl;
+    }
+    else if(send_return == 0){
+        cerr << RED << "Connection closed" << RESET << endl;
+    }
 }
 
 void Server::response(int client, string path, string protocol){

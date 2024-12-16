@@ -279,7 +279,7 @@ int Server::serverSocket(int type) {
     hints.ai_next = NULL;
 
     if ((status = getaddrinfo(NULL, port.c_str(), &hints, &result)) != 0) {
-        cerr << "getaddrinfo: " << gai_strerror(status) << "\n";
+        cerr << RED << "getaddrinfo: " << gai_strerror(status) << "\n" << RESET;
         return -1;
     }
 
@@ -396,7 +396,10 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 	memcpy(content + head_len, data, len);
 	int ok = send(client, content, head_len + len, 0);
 	if (ok == -1) {
-		cerr << "could not send content\n";
+		cerr << RED << "could not send content\n" << RESET;
+    }
+    else if(ok == 0) {
+        cerr << RED << "Connection closed\n" << RESET;
     }
     delete[] content;
 }
