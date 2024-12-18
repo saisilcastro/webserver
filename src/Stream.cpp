@@ -43,13 +43,6 @@ bool Stream::handleErrors(string file){
     else if(access(file.c_str(), X_OK) == -1 && (file.find(".php") != string::npos || file.find(".py") != string::npos))
         error = " 403 Forbidden";
 
-    if(!error.empty())
-    {
-        cout << file << endl;
-        cout << "chamado aqui: " << error << endl;
-        cout << "file: " << file << endl;
-    }
-
     if (!error.empty()) {
         loadFile(ServerRef->getPageDefault(error.substr(1, 3)));
         ServerRef->setStatusCode(error);
@@ -113,11 +106,7 @@ void Stream::handleCGI(string& file) {
         if (fork() == 0) {
             close(pipe_stdin[0]);
             ssize_t return_write = write(pipe_stdin[1], body.c_str(), body.size());
-            if(return_write == 0 && body.size() != 0){
-                cerr << RED << "Error writing to pipe" << RESET << endl;
-                exit(EXIT_FAILURE);
-            }
-            else if(return_write == -1){
+            if (return_write == -1 || (return_write == 0 && body.size() != 0)) {
                 cerr << RED << "Error writing to pipe" << RESET << endl;
                 exit(EXIT_FAILURE);
             }
@@ -143,7 +132,7 @@ void Stream::handleCGI(string& file) {
             exit(EXIT_FAILURE);
         }
 
-        string request_method = std::string("REQUEST_METHOD=") + (ServerRef->getMethod() == GET ? "GET" : "POST");  
+        string request_method = std::string("REQUEST_METHOD=") + (ServerRef->getMethod() == GET ? "GET" : "POST");
         string query_string = ServerRef->getMethod() == GET ? "QUERY_STRING=" + getQueryString() : "";
         string content_length = ServerRef->getMethod() == POST ? "CONTENT_LENGTH=" + std::to_string(body.size()) : "";
 
@@ -165,20 +154,16 @@ void Stream::handleCGI(string& file) {
 
     else {
         close(fd[1]);
-        char data[128];
         _bufferString.clear();
-        ssize_t count;
 
-        int timeout_seconds = 5;
+        int status;
         time_t start_time = time(NULL);
-
         while (true) {
-            int status;
             pid_t wait_result = waitpid(pid, &status, WNOHANG);
 
-            if (wait_result == 0) {
-                if (difftime(time(NULL), start_time) >= timeout_seconds) {
-                    kill(pid, SIGKILL);
+            if (wait_result == 0) { // Script ainda não terminou
+                if (difftime(time(NULL), start_time) >= 5) {
+                    kill(pid, SIGKILL); // Interrompa o script
                     cerr << RED << "The script took too long and was terminated." << RESET << endl;
                     throw(string(" 504 Gateway Timeout"));
                 }
@@ -187,27 +172,27 @@ void Stream::handleCGI(string& file) {
                 throw(string(" 500 Internal Server Error"));
             } else {
                 if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-                    cerr << RED << "Script execution failed!" << RESET << endl;
+                    cerr << RED << "Script execution failed! Exit status: " << WEXITSTATUS(status) << RESET << endl;
                     throw(string(" 500 Internal Server Error"));
                 }
-                break;
+                break; // Script terminou com sucesso
             }
+        }
 
-            count = read(fd[0], data, sizeof(data));
-            if (count > 0) {
-                _bufferString.append(data, count);
-            } else if (count == -1) {
-                perror("Error reading from pipe");
-                throw(string(" 500 Internal Server Error"));
-            } else if (count == 0) {
-                break;
-            }
+        char data[128];
+        ssize_t count;
+        while ((count = read(fd[0], data, sizeof(data))) > 0) {
+            _bufferString.append(data, count);
+        }
+
+        if (count == -1) {
+            perror("Error reading from pipe");
+            throw(string(" 500 Internal Server Error"));
         }
 
         close(fd[0]);
     }
 }
-
 
 void Stream::loadFile(string file) {
     _bufferString.clear();

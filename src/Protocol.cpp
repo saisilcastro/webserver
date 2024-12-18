@@ -1,13 +1,14 @@
 #include "Protocol.h"
+#include "Server.h"
 
 Protocol::Protocol(void) : method("GET"), path("/"), type("HTTP/1.1"), connection("keep-alive"), boundary(""), file(""), length(0), header(0){}
 
 Protocol::Protocol(char *data) : method("GET"), path("/"), type("HTTP/1.1"), connection("keep-alive"), boundary(""), file(""), length(0), header(0){
-    extract(data);
+    extract(data, NULL);
 }
 
 void    Protocol::reset(void) {
-    method = "GET";
+    method = "";
     path = "";
     type = "";
     connection = "";
@@ -29,17 +30,27 @@ string inside(string text, string sub, string stop) {
 }
 
 
-bool    Protocol::extract(const char *data){
-    cout << GREEN << "Data: " << data << RESET << endl;
+bool    Protocol::extract(const char *data, Server *server) {
+    string tmpMethod, tmpPath, tmpType;
     istringstream parse(data);
     size_t  pos;
     if((pos = parse.str().find("Host: ")) != string::npos)
         tmpHost = parse.str().substr(pos + 6, parse.str().find("\n", pos) - pos - 6);
     pos = tmpHost.find(":");
-   if(pos != string::npos)
+   if(pos != string::npos){
         tmpHost = tmpHost.substr(0, pos);
+        server->checkServerName(*this);
+   }
 
-    parse >> method >> path >> type;
+    parse >> tmpMethod >> tmpPath >> tmpType;
+    if(method == ""){
+        method = tmpMethod;
+        server->checkAcceptedMethod(*this);
+    }
+    if(path == "")
+        path = tmpPath;
+    if(type == "")
+        type = tmpType;
     if ((pos = parse.str().find("\r\n\r\n")) != string::npos) {
         size_t next_pos = parse.str().find("\r\n\r\n", pos + 4);
         if (next_pos != string::npos) {
@@ -56,7 +67,6 @@ bool    Protocol::extract(const char *data){
         file = inside(parse.str(), "filename=\"","\"");
     if(length == 0)
         length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
-    cout << "Method: " << method << " Path: " << path << " Type: " << type << endl;
     if(boundary == "" || file == "" || length == 0)
         return false;
     return true;
@@ -78,6 +88,8 @@ method_e    Protocol::isMethod(void) {
         return ENTITY_TOO_LARGE;
     else if(method == "INVALID_HOST")
         return INVALID_HOST;
+    else if(method == "")
+        return EMPTY;
     return INVALID_REQUEST;
 }
 

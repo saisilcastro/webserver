@@ -506,7 +506,7 @@ void Server::defineLocationPath(Location &location, string path, string &Locatio
     while(location.data.find("index") == location.data.end() && location.data.find("return") != location.data.end())
     {
         _statusCode = " 301 Moved Permanently";
-        cout << "Redirecting to: " << returnTrim(location.data["return"]) << endl;
+        cout << GREEN << "Redirecting to: " << returnTrim(location.data["return"]) << RESET << endl;
         location = findLocationPath(returnTrim(location.data["return"]));
     }
 

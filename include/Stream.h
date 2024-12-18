@@ -11,7 +11,6 @@
 #include <sys/wait.h>
 #include "Server.h"
 
-
 using namespace std;
 
 class Stream{

@@ -1,18 +1,9 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-// colors
-#define RED "\033[1;31m"
-#define GREEN "\033[1;32m"
-#define YELLOW "\033[1;33m"
-#define BLUE "\033[1;34m"
-#define MAGENTA "\033[1;35m"
-#define CYAN "\033[1;36m"
-#define RESET "\033[0m"
-
+#include "Protocol.h"
 #include <csignal>
 #include "Config.h"
-#include "Protocol.h"
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
@@ -39,8 +30,7 @@ class Stream;
 typedef struct sockaddr_in SockAddrIn;
 using namespace std;
 
-class Server
-{
+class Server {
 public:
     Server(void);
     Server(char *);
@@ -84,7 +74,6 @@ public:
     void handleDeleteMethod(const string &path);
     string adjustScriptPath(const string &path);
     void loadIndexPage(Stream &stream, Location &location);
-    // void loadErrorPage(Stream &stream, const string &errorCode);
     void loadDirectoryPage(int client, Stream &stream, const std::string &fullPath);
     void execute(int socket);
     void checkAcceptedMethod(Protocol &master);
@@ -94,21 +83,7 @@ public:
     bool HandleErrors(int client, string protocol, Stream& stream);
     string getPageDefault(const string &errorCode);
     void loadError(int client, std::string filePath, const std::string &errorCode);
-    void printErrors(const std::vector<std::string> &codeErrors)
-    {
-        for (std::vector<std::string>::const_iterator it = codeErrors.begin(); it != codeErrors.end(); ++it)
-        {
-            std::map<std::string, std::string>::const_iterator errIt = error.find(*it);
-            if (errIt != error.end())
-            {
-                std::cout << "Erro: " << errIt->second << std::endl;
-            }
-            else
-            {
-                std::cout << "Erro: Código \"" << *it << "\" não encontrado." << std::endl;
-            }
-        }
-    }
+    void printErrors(const std::vector<std::string> &codeErrors);
     int getMethod() { return (master.isMethod()); }
     string getMime() const { return mime; }
     string getContentBody() const { return master.getContentBody(); }
@@ -120,7 +95,7 @@ public:
     void contentMaker(int client, string protocol, string connection, string buffer);
     void checkServerName(Protocol &master);
     void setError(const string& error, const string& msg, bool& readyToWrite);
-    
+
 protected:
     string host;
     string port;

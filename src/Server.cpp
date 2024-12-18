@@ -48,7 +48,9 @@ string Server::createPacket(int client) {
     while (creating) {
         FD_ZERO(&read_fd);
         FD_ZERO(&write_fd);
-
+        if(master.isMethod() != GET && master.isMethod() != POST && master.isMethod() != DELETE && master.isMethod() != EMPTY && !readyToWrite){
+            readyToWrite = true;
+        }
         if (!readyToWrite) {
             FD_SET(client, &read_fd);
         } else {
@@ -79,17 +81,11 @@ string Server::createPacket(int client) {
                 currentSize += piece;
                 if (!createFile) {
                     packetCreated = true;
-                    if (!master.extract(buffer)) {
+                    if (!master.extract(buffer, this)) {
                         tmpHeader.insert(tmpHeader.end(), buffer, buffer + piece);
-                        if (!master.extract(&tmpHeader[0])) {
+                        if (!master.extract(&tmpHeader[0], this)) {
                             continue;
                         } else {
-                            checkAcceptedMethod(master);
-                            checkServerName(master);
-                            if(master.isMethod() != GET && master.isMethod() != POST && master.isMethod() != DELETE && !readyToWrite){
-                                readyToWrite = true;
-                                continue;
-                            }
                             memcpy(buffer, &tmpHeader[0], tmpHeader.size());
                             tmpHeader.clear();
                             createFile = true;
@@ -103,7 +99,6 @@ string Server::createPacket(int client) {
                             continue;
                         }
                         path = "upload/" + master.getFileName();
-
                         if (!master.getFileName().empty()) {
                             out.open(path.c_str(), ios::out | ios::binary);
                             receivingPost = true;
@@ -115,7 +110,6 @@ string Server::createPacket(int client) {
                         offset = static_cast<size_t>(master.getHeaderLen());
                     }
                 }
-
                 dataLen = piece - offset;
                 size_t remainingLen = static_cast<size_t>(master.getFileLen()) - writtenByte;
 
@@ -218,15 +212,14 @@ void Server::loadError(int client, string filePath, const string& errorCode)
 void Server::handleDelete(int client, Stream &stream, const string &fullPath, Location &location) {
     struct stat mStat;
     string file = root + master.getPath();
-
     if (stat(file.c_str(), &mStat) != 0)
         _statusCode = " 404 Not Found";
     else if (access(file.c_str(), R_OK | W_OK) != 0)
         _statusCode = " 403 Forbidden";
     else if (remove(file.c_str()) != 0)
         _statusCode = " 500 Internal Server Error";
-
-    stream.loadFile(getPageDefault(_statusCode.substr(2, 4)));
+    if(_statusCode != " 200 OK")
+        stream.loadFile(getPageDefault(_statusCode.substr(1, 3)));
 }
 
 void Server::handleGetPost(int client, string& path, Stream &stream)
@@ -281,8 +274,6 @@ void Server::contentMaker(int client, string protocol, string connection, string
 }
 
 void Server::response(int client, string path, string protocol){
-
-    cout << "Recebido: " << "Client: " << client << " Path: " << path << " Protocol: " << protocol << endl;
     static string LocationRoot;
     struct stat info;
     size_t pos = path.rfind(".");
@@ -308,7 +299,6 @@ void Server::execute(int socket) {
         return ;
     fcntl(client, F_SETFL, O_NONBLOCK);
     createPacket(client);
-	response(client, master.getPath(), master.getType());
     close(client);
 }
 

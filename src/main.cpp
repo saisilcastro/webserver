@@ -42,10 +42,10 @@ int main(int argc, char **argv) {
         if(argc == 2)
             webserver(argv[1]);
         else
-            webserver("Configs/default.conf");
+            webserver("configs/default.conf");
     }
     catch(const exception &e) {
-        webserver("Configs/default.conf");
+        webserver("configs/default.conf");
     }
     return (0);
 }
