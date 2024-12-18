@@ -74,13 +74,13 @@ public:
     void handleDeleteMethod(const string &path);
     string adjustScriptPath(const string &path);
     void loadIndexPage(Stream &stream, Location &location);
-    void loadDirectoryPage(int client, Stream &stream, const std::string &fullPath);
+    void loadDirectoryPage(Stream &stream, const std::string &fullPath);
     void execute(int socket);
     void checkAcceptedMethod(Protocol &master);
     void defineFullPath(string &fullPath, Location &location, string url);
     void defineLocationPath(Location &location, string path, string &LocationRoot);
     void LoadSpecifiedFile(int client, const string &path, const string &status);
-    bool HandleErrors(int client, string protocol, Stream& stream);
+    bool HandleErrors(string protocol, Stream& stream);
     string getPageDefault(const string &errorCode);
     void loadError(int client, std::string filePath, const std::string &errorCode);
     void printErrors(const std::vector<std::string> &codeErrors);
@@ -88,8 +88,8 @@ public:
     string getMime() const { return mime; }
     string getContentBody() const { return master.getContentBody(); }
 
-    void handleGetPost(int client, string &path, Stream &stream);
-    void handleDelete(int client, Stream &stream, const std::string &fullPath, Location &location);
+    void handleGetPost(string &path, Stream &stream);
+    void handleDelete(Stream &stream);
     string getStatusCode() const { return _statusCode; }
     void setStatusCode(const string &statusCode) { _statusCode = statusCode; }
     void contentMaker(int client, string protocol, string connection, string buffer);

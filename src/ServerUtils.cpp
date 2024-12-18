@@ -439,7 +439,7 @@ void Server::loadIndexPage(Stream &stream, Location &location) {
 }
 
 
-void Server::loadDirectoryPage(int client, Stream &stream, const string &fullPath) {
+void Server::loadDirectoryPage(Stream &stream, const string &fullPath) {
 
     string html = "<html><head><title>Index of " + fullPath + "</title></head>"
                        "<body><h1>Index of " + fullPath + "</h1><hr><pre>";
@@ -516,7 +516,7 @@ void Server::defineLocationPath(Location &location, string path, string &Locatio
         LocationRoot = "";
 }
 
-bool Server::HandleErrors(int client, string protocol, Stream& stream) {
+bool Server::HandleErrors(string protocol, Stream& stream) {
     struct ErrorCheck {
         bool condition;
         const char* page;

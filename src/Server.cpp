@@ -209,7 +209,7 @@ void Server::loadError(int client, string filePath, const string& errorCode)
     }
 }
 
-void Server::handleDelete(int client, Stream &stream, const string &fullPath, Location &location) {
+void Server::handleDelete(Stream &stream) {
     struct stat mStat;
     string file = root + master.getPath();
     if (stat(file.c_str(), &mStat) != 0)
@@ -222,14 +222,13 @@ void Server::handleDelete(int client, Stream &stream, const string &fullPath, Lo
         stream.loadFile(getPageDefault(_statusCode.substr(1, 3)));
 }
 
-void Server::handleGetPost(int client, string& path, Stream &stream)
+void Server::handleGetPost(string& path, Stream &stream)
 {   
     static string LocationRoot;
     struct stat info;
     Location location;
     string fullPath;
     size_t pos = path.rfind(".");
-
     mimeMaker(path);
     defineLocationPath(location, path, LocationRoot);
     defineFullPath(fullPath, location, extractURL(path));
@@ -244,7 +243,7 @@ void Server::handleGetPost(int client, string& path, Stream &stream)
         else if(location.data.find("index") != location.data.end())
             loadIndexPage(stream, location);
         else if(S_ISDIR(info.st_mode))
-            loadDirectoryPage(client, stream, fullPath);
+            loadDirectoryPage(stream, fullPath);
     }
     else{
         _statusCode = " 404 Not Found";
@@ -271,12 +270,11 @@ void Server::contentMaker(int client, string protocol, string connection, string
     else if(send_return == 0){
         cerr << RED << "Connection closed" << RESET << endl;
     }
+    cout << GREEN << "Status code: " << _statusCode << RESET << endl;
 }
 
 void Server::response(int client, string path, string protocol){
     static string LocationRoot;
-    struct stat info;
-    size_t pos = path.rfind(".");
     Stream stream(this, path);
     Location location;
     string fullPath;
@@ -284,11 +282,11 @@ void Server::response(int client, string path, string protocol){
 
     defineLocationPath(location, path, LocationRoot);
     defineFullPath(fullPath, location, extractURL(path));
-    if(HandleErrors(client, protocol, stream) == false){
+    if(HandleErrors(protocol, stream) == false){
         if(master.isMethod() == GET || master.isMethod() == POST)
-            handleGetPost(client, path, stream);
+            handleGetPost(path, stream);
         else
-            handleDelete(client, stream, fullPath, location);
+            handleDelete(stream);
     }
     contentMaker(client, protocol, "keep-alive", stream.getBufferString());
 }

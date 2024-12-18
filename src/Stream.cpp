@@ -10,7 +10,7 @@ Stream::Stream(string file) : buffer(NULL), size(0) {
         saveFile(file);
 }
 
-Stream::Stream(Server *server, string path) : buffer(NULL), _bufferString(""), size(0) {
+Stream::Stream(Server *server, string path) : buffer(NULL), size(0), _bufferString("") {
     ServerRef = server;
     this->path = path;
 }
@@ -134,7 +134,10 @@ void Stream::handleCGI(string& file) {
 
         string request_method = std::string("REQUEST_METHOD=") + (ServerRef->getMethod() == GET ? "GET" : "POST");
         string query_string = ServerRef->getMethod() == GET ? "QUERY_STRING=" + getQueryString() : "";
-        string content_length = ServerRef->getMethod() == POST ? "CONTENT_LENGTH=" + std::to_string(body.size()) : "";
+        ostringstream oss;
+        if(ServerRef->getMethod() == POST)
+            oss << body.size();
+        string content_length = ServerRef->getMethod() == POST ? "CONTENT_LENGTH=" + oss.str() : "";
 
         char* envp[] = {
             (char*)request_method.c_str(),
