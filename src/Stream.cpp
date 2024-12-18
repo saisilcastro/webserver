@@ -161,9 +161,9 @@ void Stream::handleCGI(string& file) {
         while (true) {
             pid_t wait_result = waitpid(pid, &status, WNOHANG);
 
-            if (wait_result == 0) { // Script ainda não terminou
+            if (wait_result == 0) {
                 if (difftime(time(NULL), start_time) >= 5) {
-                    kill(pid, SIGKILL); // Interrompa o script
+                    kill(pid, SIGKILL);
                     cerr << RED << "The script took too long and was terminated." << RESET << endl;
                     throw(string(" 504 Gateway Timeout"));
                 }
@@ -175,7 +175,7 @@ void Stream::handleCGI(string& file) {
                     cerr << RED << "Script execution failed! Exit status: " << WEXITSTATUS(status) << RESET << endl;
                     throw(string(" 500 Internal Server Error"));
                 }
-                break; // Script terminou com sucesso
+                break;
             }
         }
 
