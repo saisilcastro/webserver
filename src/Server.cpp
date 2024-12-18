@@ -110,6 +110,10 @@ string Server::createPacket(int client) {
                         offset = static_cast<size_t>(master.getHeaderLen());
                     }
                 }
+                if(master.isMethod() != GET && master.isMethod() != POST && master.isMethod() != DELETE){
+                    cout << RED << "Entrou\n" << RESET;
+                    continue;
+                }
                 dataLen = piece - offset;
                 size_t remainingLen = static_cast<size_t>(master.getFileLen()) - writtenByte;
 
@@ -128,7 +132,7 @@ string Server::createPacket(int client) {
                     if (writtenByte > maxBodySize) // check if max body size is exceeded
                         setError("ENTITY_TOO_LARGE", "Entity too large", readyToWrite);
 
-                    cout << "Uploaded " << writtenByte << " of " << master.getFileLen() << endl;
+                    cout << BLUE "Uploaded " << writtenByte << " of " << master.getFileLen() << RESET << endl;
                 }
 
                 if (writtenByte >= master.getFileLen()) {
@@ -152,7 +156,7 @@ string Server::createPacket(int client) {
             }
 
             out.close();
-            if(master.isMethod() == ENTITY_TOO_LARGE){
+            if(master.isMethod() == ENTITY_TOO_LARGE || (master.isMethod() == INVALID_REQUEST && master.getFileLen() != 0)){
                 remove(path.c_str());
                 usleep(master.getFileLen() / 1000);
             }
@@ -270,7 +274,6 @@ void Server::contentMaker(int client, string protocol, string connection, string
     else if(send_return == 0){
         cerr << RED << "Connection closed" << RESET << endl;
     }
-    cout << GREEN << "Status code: " << _statusCode << RESET << endl;
 }
 
 void Server::response(int client, string path, string protocol){

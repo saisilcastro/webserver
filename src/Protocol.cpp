@@ -43,12 +43,13 @@ bool    Protocol::extract(const char *data, Server *server) {
    }
 
     parse >> tmpMethod >> tmpPath >> tmpType;
+    if(path == "")
+        path = tmpPath;
     if(method == ""){
         method = tmpMethod;
         server->checkAcceptedMethod(*this);
+        server->checkServerName(*this);
     }
-    if(path == "")
-        path = tmpPath;
     if(type == "")
         type = tmpType;
     if ((pos = parse.str().find("\r\n\r\n")) != string::npos) {
