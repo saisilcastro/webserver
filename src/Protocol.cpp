@@ -1,13 +1,14 @@
 #include "Protocol.h"
+#include "Server.h"
 
 Protocol::Protocol(void) : method("GET"), path("/"), type("HTTP/1.1"), connection("keep-alive"), boundary(""), file(""), length(0), header(0){}
 
 Protocol::Protocol(char *data) : method("GET"), path("/"), type("HTTP/1.1"), connection("keep-alive"), boundary(""), file(""), length(0), header(0){
-    extract(data);
+    extract(data, NULL);
 }
 
 void    Protocol::reset(void) {
-    method = "GET";
+    method = "";
     path = "";
     type = "";
     connection = "";
@@ -15,6 +16,7 @@ void    Protocol::reset(void) {
     file = "";
     length = 0;
     header = 0;
+    contentBody = "";
 }
 
 string inside(string text, string sub, string stop) {
@@ -27,24 +29,50 @@ string inside(string text, string sub, string stop) {
     return "";
 }
 
-void    Protocol::extract(char *data){
+
+bool    Protocol::extract(const char *data, Server *server) {
+    string tmpMethod, tmpPath, tmpType;
     istringstream parse(data);
     size_t  pos;
     if((pos = parse.str().find("Host: ")) != string::npos)
         tmpHost = parse.str().substr(pos + 6, parse.str().find("\n", pos) - pos - 6);
     pos = tmpHost.find(":");
-   if(pos != string::npos)
+   if(pos != string::npos){
         tmpHost = tmpHost.substr(0, pos);
+        server->checkServerName(*this);
+   }
 
-    parse >> method >> path >> type;
-   	if ((pos = parse.str().find("\r\n\r\n")) != string::npos)
-        header = parse.str().substr(pos + 4).find("\r\n\r\n") + pos + 8;
-
+    parse >> tmpMethod >> tmpPath >> tmpType;
+    if(path == "")
+        path = tmpPath;
+    if(method == ""){
+        method = tmpMethod;
+        server->checkAcceptedMethod(*this);
+        server->checkServerName(*this);
+    }
+    if(type == "")
+        type = tmpType;
+    if ((pos = parse.str().find("\r\n\r\n")) != string::npos) {
+        size_t next_pos = parse.str().find("\r\n\r\n", pos + 4);
+        if (next_pos != string::npos) {
+            header = next_pos + 4;
+        } else {
+            header = pos + 4;
+        }
+        contentBody = parse.str().substr(header);
+    }
     connection = inside(parse.str(), "Connection: ", "\n");
-    boundary = inside(parse.str(), "boundary=", "\r\n");
-    file = inside(parse.str(), "filename=\"","\"");
-    length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
+    if(boundary == "")
+        boundary = inside(parse.str(), "boundary=", "\r\n");
+    if(file == "")
+        file = inside(parse.str(), "filename=\"","\"");
+    if(length == 0)
+        length = atoll(inside(parse.str(), "Content-Length: ", "\n").c_str());
+    if(boundary == "" || file == "" || length == 0)
+        return false;
+    return true;
 }
+
 
 void    Protocol::setMethod(string value) {
     method = value;
@@ -53,10 +81,16 @@ void    Protocol::setMethod(string value) {
 method_e    Protocol::isMethod(void) {
     if (method == "GET")
         return GET;
-    if (method == "POST")
+    else if (method == "POST")
         return POST;
-    if (method == "DELETE")
+    else if (method == "DELETE")
         return DELETE;
+    else if(method == "ENTITY_TOO_LARGE")
+        return ENTITY_TOO_LARGE;
+    else if(method == "INVALID_HOST")
+        return INVALID_HOST;
+    else if(method == "")
+        return EMPTY;
     return INVALID_REQUEST;
 }
 
