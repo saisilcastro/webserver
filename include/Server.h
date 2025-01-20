@@ -85,6 +85,7 @@ public:
     void loadError(int client, std::string filePath, const std::string &errorCode);
     void printErrors(const std::vector<std::string> &codeErrors);
     int getMethod() { return (master.isMethod()); }
+    void printMethod();
     string getMime() const { return mime; }
     string getContentBody() const { return master.getContentBody(); }
 
@@ -95,6 +96,7 @@ public:
     void contentMaker(int client, string protocol, string connection, string buffer);
     void checkServerName(Protocol &master);
     void setError(const string& error, const string& msg, bool& readyToWrite);
+    Protocol masterGet(void);
 
 protected:
     string host;

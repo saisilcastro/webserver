@@ -11,6 +11,7 @@
  * 
  * @return The value of the directive if found; otherwise, returns an empty string.
  */
+
 string Server::findDirectiveValue(const string& path)
 {
     vector<Location>::const_iterator start = location.begin();
@@ -31,40 +32,25 @@ string Server::findDirectiveValue(const string& path)
     return "";
 }
 
-
 string Server::findDirectiveName(const string& path)
 {
-    vector<Location>::const_iterator start = location.begin();
-    vector<Location>::const_iterator end = location.end();
-    while(start != end)
-    {
-        map<string, string>::const_iterator it = start->data.begin();
-        map<string, string>::const_iterator ite = start->data.end();
-        while(it != ite)
-        {  
-            if(it->second == path)
-                return it->first;
-            ++it;
+    for (vector<Location>::const_iterator loc = location.begin(); loc != location.end(); ++loc) {
+        for (map<string, string>::const_iterator data = loc->data.begin(); data != loc->data.end(); ++data) {
+            if (data->second == path)
+                 return data->first;
         }
-        ++start;
     }
     return "";
 }
 
-
 Location Server::findLocationPath(const string& path)
 {
-    vector<Location>::const_iterator start = location.begin();
-    vector<Location>::const_iterator end = location.end();
-    while(start != end)
-    {
-        if(start->path == path)
-            return *start;
-        ++start;
+    for (vector<Location>::const_iterator loc = location.begin(); loc != location.end(); ++loc) {
+        if (loc->path == path)
+            return *loc;
     }
     return Location();
 }
-
 
 // Orthodox Canonical Form
 
@@ -77,9 +63,8 @@ Server::Server(void) : host("127.0.0.1"), port("8080"), maxBodySize(-1), sock(-1
 
 Server::Server(char *file) : host("127.0.0.1"), port("80"), sock(-1), root("www"), mime("text/html"), transfer(true) {
     ifstream in(file);
-    if (!in.is_open() || in.bad() || in.fail()) {
+    if (!in.is_open() || in.bad() || in.fail())
         return;
-    }
     in.close();
 }
 
@@ -104,11 +89,10 @@ Server::Server(string _host, string _port, string _root, map<string, string> _er
             root = "./" + root;
     }
 
-    if(root.empty() || access(root.c_str(), F_OK | R_OK) == -1){
+    if(root.empty() || access(root.c_str(), F_OK | R_OK) == -1) {
         throw runtime_error("Invalid root directory, using server default.");
     }
 }
-
 
 Server &Server::operator=(Server const &pointer) {
     if (this != &pointer) {
@@ -160,13 +144,11 @@ string returnTrim(const string& str) {
 
 void trim(char str[]) {
     size_t start = 0;
-    while (str[start] == ' ' || str[start] == '\t' || str[start] == '\n' || str[start] == '\r' || str[start] == '\f' || str[start] == '\v') {
+    while (str[start] == ' ' || str[start] == '\t' || str[start] == '\n' || str[start] == '\r' || str[start] == '\f' || str[start] == '\v')
         start++;
-    }
     size_t end = strlen(str) - 1;
-    while (str[end] == ' ' || str[end] == '\t' || str[end] == '\n' || str[end] == '\r' || str[end] == '\f' || str[end] == '\v') {
+    while (str[end] == ' ' || str[end] == '\t' || str[end] == '\n' || str[end] == '\r' || str[end] == '\f' || str[end] == '\v')
         end--;
-    }
     str[end + 1] = '\0';
     memmove(str, str + start, end - start + 1);
 }
@@ -211,8 +193,6 @@ void Server::setPort(string& port) {
     }
 }
 
-
-
 string Server::getPort() const {
     return port;
 }
@@ -247,8 +227,7 @@ string extractURL(string &path)
         return("");
     if(find(path.begin(), path.end(), '?') != path.end())
         path = path.substr(0, path.find('?'));
-    for(size_t i = 1; i < path.length(); i++)
-    {
+    for(size_t i = 1; i < path.length(); i++) {
         if(path[i] == '/')
             return(path.substr(0, i));
     }
@@ -328,6 +307,14 @@ vector<string> split(string str, string sep) {
 	return result;
 }
 
+void Server::printMethod() {
+    static vector<string> methods;
+    Location local = findLocationPath(master.getPath());
+
+    for (map<string, string>::const_iterator it = local.data.begin(); it != local.data.end(); ++it)
+        std::cout << it->first << " " << it->second << std::endl;   
+}
+
 void Server::checkAcceptedMethod(Protocol &master) {
     static vector<string> methods;
     Location local = findLocationPath(master.getPath());
@@ -395,12 +382,10 @@ void  Server::contentMaker(int client, string protocol, string connection, void 
 	sprintf(content, "%s", head);
 	memcpy(content + head_len, data, len);
 	int ok = send(client, content, head_len + len, 0);
-	if (ok == -1) {
+	if (ok == -1)
 		cerr << RED << "could not send content\n" << RESET;
-    }
-    else if(ok == 0) {
+    else if(ok == 0)
         cerr << RED << "Connection closed\n" << RESET;
-    }
     delete[] content;
 }
 
@@ -411,9 +396,8 @@ string Server::getPageDefault(const string &errorCode) {
         return page;
 
     map<string, string>::iterator it = this->errorPages.find(errorCode);
-    if (it != this->errorPages.end()) {
+    if (it != this->errorPages.end())
         return it->second;
-    }
     return("");
 }
 
@@ -437,7 +421,6 @@ void Server::loadIndexPage(Stream &stream, Location &location) {
     else
         stream.loadFile(fixPath(tmpRoot, index));
 }
-
 
 void Server::loadDirectoryPage(Stream &stream, const string &fullPath) {
 
@@ -485,8 +468,6 @@ void Server::loadDirectoryPage(Stream &stream, const string &fullPath) {
     remove(tempFile);
 }
 
-
-
 void Server::defineFullPath(string &fullPath, Location &location, string url) {
     if(location.data.find("root") != location.data.end())
         fullPath = location.data["root"];
@@ -503,8 +484,7 @@ void Server::defineLocationPath(Location &location, string path, string &Locatio
     else
         location = findLocationPath(url);
 
-    while(location.data.find("index") == location.data.end() && location.data.find("return") != location.data.end())
-    {
+    while(location.data.find("index") == location.data.end() && location.data.find("return") != location.data.end()) {
         _statusCode = " 301 Moved Permanently";
         cout << GREEN << "Redirecting to: " << returnTrim(location.data["return"]) << RESET << endl;
         location = findLocationPath(returnTrim(location.data["return"]));
@@ -538,4 +518,8 @@ bool Server::HandleErrors(string protocol, Stream& stream) {
         }
     }
     return false;
+}
+
+Protocol Server::masterGet(void) {
+    return master;
 }

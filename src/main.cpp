@@ -25,9 +25,8 @@ void webserver(const char *file) {
         } else
             cout << "Warning: Server for port " << port << " already exists. Ignoring duplicate configuration." << endl;
     }
-
     for (size_t i = 0; i < max; i++)
-        Run(server, max);
+        Run(server, max);        
 }
 
 int main(int argc, char **argv) {

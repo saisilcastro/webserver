@@ -55,22 +55,20 @@ bool Stream::handleErrors(string file){
 void Stream::handleFile(string& file){
     trim(file);
     ifstream infile(file.c_str());
-    if(!infile.is_open())
-    {
+    if(!infile.is_open()) {
         cerr << RED << "Could not open file\n" << RESET;
         throw(string(" 500 Internal Server Error"));
     }
 
     _bufferString = string((istreambuf_iterator<char>(infile)), istreambuf_iterator<char>());
-    if (_bufferString.empty())
-    {
+    if (_bufferString.empty()) {
         cerr << RED << "Could not read file\n" << RESET;
         throw(string(" 500 Internal Server Error"));
     }
 }
 
 string Stream::getQueryString(){
-    if(path.find("?") != string::npos){
+    if(path.find("?") != string::npos) {
         size_t pos = path.find("?");
         return path.substr(pos + 1);
     }
@@ -184,10 +182,8 @@ void Stream::handleCGI(string& file) {
 
         char data[128];
         ssize_t count;
-        while ((count = read(fd[0], data, sizeof(data))) > 0) {
+        while ((count = read(fd[0], data, sizeof(data))) > 0)
             _bufferString.append(data, count);
-        }
-
         if (count == -1) {
             perror("Error reading from pipe");
             throw(string(" 500 Internal Server Error"));
@@ -199,7 +195,7 @@ void Stream::handleCGI(string& file) {
 
 void Stream::loadFile(string file) {
     _bufferString.clear();
-    try{
+    try {
         if(!handleErrors(file)){
             if (file.find(".php") == string::npos && file.find(".py") == string::npos) {
                 handleFile(file);

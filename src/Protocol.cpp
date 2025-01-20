@@ -29,7 +29,6 @@ string inside(string text, string sub, string stop) {
     return "";
 }
 
-
 bool    Protocol::extract(const char *data, Server *server) {
     string tmpMethod, tmpPath, tmpType;
     istringstream parse(data);
@@ -37,10 +36,10 @@ bool    Protocol::extract(const char *data, Server *server) {
     if((pos = parse.str().find("Host: ")) != string::npos)
         tmpHost = parse.str().substr(pos + 6, parse.str().find("\n", pos) - pos - 6);
     pos = tmpHost.find(":");
-   if(pos != string::npos){
+    if(pos != string::npos){
         tmpHost = tmpHost.substr(0, pos);
         server->checkServerName(*this);
-   }
+    }
 
     parse >> tmpMethod >> tmpPath >> tmpType;
     if(path == "")
@@ -54,11 +53,10 @@ bool    Protocol::extract(const char *data, Server *server) {
         type = tmpType;
     if ((pos = parse.str().find("\r\n\r\n")) != string::npos) {
         size_t next_pos = parse.str().find("\r\n\r\n", pos + 4);
-        if (next_pos != string::npos) {
+        if (next_pos != string::npos)
             header = next_pos + 4;
-        } else {
+        else
             header = pos + 4;
-        }
         contentBody = parse.str().substr(header);
     }
     connection = inside(parse.str(), "Connection: ", "\n");
@@ -72,7 +70,6 @@ bool    Protocol::extract(const char *data, Server *server) {
         return false;
     return true;
 }
-
 
 void    Protocol::setMethod(string value) {
     method = value;

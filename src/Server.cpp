@@ -21,9 +21,8 @@ void Server::checkServerName(Protocol &master){
     string client_host = master.getHost();
     string server_host = host;
 
-    if(client_host != "localhost" && server_host != "" && client_host != server_host){
+    if(client_host != "localhost" && server_host != "" && client_host != server_host)
         master.setMethod("INVALID_HOST");
-    }
 }
 
 string Server::createPacket(int client) {
@@ -63,7 +62,7 @@ string Server::createPacket(int client) {
 		}
 		else {
             timeout.tv_sec = 0;
-			timeout.tv_usec = master.getFileLen() / 1000;
+            timeout.tv_usec = master.getFileLen() / 65535;
 		}
 
         int ready = select(client + 1, &read_fd, &write_fd, NULL, &timeout);
@@ -83,22 +82,27 @@ string Server::createPacket(int client) {
                     packetCreated = true;
                     if (!master.extract(buffer, this)) {
                         tmpHeader.insert(tmpHeader.end(), buffer, buffer + piece);
-                        if (!master.extract(&tmpHeader[0], this)) {
+                        if (!master.extract(&tmpHeader[0], this))
                             continue;
-                        } else {
+                        else {
                             memcpy(buffer, &tmpHeader[0], tmpHeader.size());
                             tmpHeader.clear();
                             createFile = true;
                         }
-                    } else {
-                        createFile = true;
                     }
+                    else
+                        createFile = true;
                     if (master.getFileLen() && master.getFileLen() <= maxBodySize && !master.getFileName().empty()) {
-                        if(access("upload", F_OK | W_OK) == -1){
+                        std::string upload = root + "/upload";
+                        struct stat st;
+                        if (stat(upload.c_str(), &st) == -1)
+                            mkdir(upload.c_str(), 0766);
+                        if(access(upload.c_str(), F_OK | W_OK) == -1){
                             setError("INTERNAL_SERVER_ERROR", "Error during access", readyToWrite);
                             continue;
                         }
-                        path = "upload/" + master.getFileName();
+                        path = upload + "/" + master.getFileName();
+                        std::cout << path << std::endl;
                         if (!master.getFileName().empty()) {
                             out.open(path.c_str(), ios::out | ios::binary);
                             receivingPost = true;
@@ -117,15 +121,12 @@ string Server::createPacket(int client) {
                 dataLen = piece - offset;
                 size_t remainingLen = static_cast<size_t>(master.getFileLen()) - writtenByte;
 
-                if (remainingLen <= dataLen) {
+                if (remainingLen <= dataLen)
                     dataLen = remainingLen;
-                }
-
                 if (dataLen > 0) {
                     char *sub = strstr(buffer + offset, master.getBoundary().c_str());
-                    if (sub) {
+                    if (sub)
                         dataLen -= master.getBoundary().length() + 8;
-                    }
                     out.write(buffer + offset, dataLen);
                     writtenByte += dataLen;
 
@@ -249,7 +250,7 @@ void Server::handleGetPost(string& path, Stream &stream)
         else if(S_ISDIR(info.st_mode))
             loadDirectoryPage(stream, fullPath);
     }
-    else{
+    else {
         _statusCode = " 404 Not Found";
         stream.loadFile(getPageDefault("404"));
     }
@@ -268,12 +269,10 @@ void Server::contentMaker(int client, string protocol, string connection, string
 
     string response = responseStream.str();
     ssize_t send_return = send(client, response.c_str(), response.size(), 0);
-    if (send_return == -1){
+    if (send_return == -1)
         cerr << RED << "Error sending response" << RESET << endl;
-    }
-    else if(send_return == 0){
+    else if(send_return == 0)
         cerr << RED << "Connection closed" << RESET << endl;
-    }
 }
 
 void Server::response(int client, string path, string protocol){
